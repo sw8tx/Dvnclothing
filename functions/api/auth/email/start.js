@@ -53,7 +53,7 @@ async function submitMail(env, message, deliveryKey) {
     let status;
     try {
       const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST', headers, body: message, signal: controller.signal, redirect: 'error',
+        method: 'POST', headers, body: message, signal: controller.signal, redirect: 'manual',
       });
       status = response.status;
       // Resend's HTTP acceptance completes the handoff. The sign-in flow does

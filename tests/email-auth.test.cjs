@@ -39,6 +39,7 @@ function fixture(t, provider = 200) {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     assert.equal(url, 'https://api.resend.com/emails');
     assert.equal(options.headers.Authorization, 'Bearer test-sender');
+    assert.equal(options.redirect, 'manual', 'use a Workers-supported mode that keeps credentials on the Resend origin');
     messages.push(JSON.parse(options.body));
     return typeof provider === 'function' ? provider(options) : Response.json({ id: 'test-id' }, { status: provider });
   });
@@ -202,6 +203,7 @@ test('short provider rate limit waits before retrying exactly the same message',
 });
 
 for (const [status, name, delay, category, error, count] of [
+  [307, 'redirect', '0', 'rejected', 'delivery_unavailable', 1],
   [403, 'email_above_quota', '0', 'quota', 'delivery_quota', 1],
   [429, 'monthly_quota_exceeded', '1', 'quota', 'delivery_quota', 1],
   [429, 'daily_quota_exceeded', '0', 'quota', 'delivery_quota', 1],
