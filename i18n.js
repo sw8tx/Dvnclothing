@@ -23,6 +23,9 @@
     if (!supported(value)) return;
     language = value;
     document.documentElement.lang = language;
+    document.querySelectorAll('.imprint-copy[lang]').forEach((element) => {
+      element.hidden = element.lang !== language;
+    });
     document.querySelectorAll('[data-i18n]').forEach((element) => {
       const key = element.dataset.i18n;
       const copy = translations[language][key] ?? translations.de[key];

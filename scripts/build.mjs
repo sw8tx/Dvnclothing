@@ -36,7 +36,10 @@ for (const source of new Set([...stylesheets, '/translations.js', '/i18n.js', '/
   const destination = path.join(output, versioned);
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, bytes);
-  versionedAssets.set(source, versioned);
+  // Keep the legal stylesheet available at its longstanding path. Its content
+  // version still changes on every edit, without risking a cached SPA fallback
+  // for a newly introduced filename during a deployment.
+  versionedAssets.set(source, source === '/legal.css' ? `${source}?v=${hash}` : versioned);
 }
 for (const page of pages) {
   const dest = path.join(output, page);

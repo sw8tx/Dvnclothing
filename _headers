@@ -9,6 +9,9 @@
 /styles.css
   Cache-Control: public, max-age=0, must-revalidate
 
+/legal.css
+  Cache-Control: public, max-age=0, must-revalidate
+
 /countdown.js
   Cache-Control: public, max-age=0, must-revalidate
 
