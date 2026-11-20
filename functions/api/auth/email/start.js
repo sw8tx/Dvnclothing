@@ -123,8 +123,16 @@ export async function onRequestPost({ request, env }) {
       return failure('unavailable', 503);
     }
     if (admission.meta.changes === 0) {
-      const until = await db.prepare(nextAdmission).bind(emailKey, ipKey, now).first();
-      return failure('rate_limited', 429, until?.seconds ?? 60);
+      // Admission is already decided. A missing timing hint must not turn a
+      // known cooldown into an apparent delivery outage.
+      let wait;
+      try {
+        const until = await db.prepare(nextAdmission).bind(emailKey, ipKey, now).first();
+        if (Number.isInteger(until?.seconds) && until.seconds > 0) wait = until.seconds;
+      } catch {
+        console.warn('email_auth_start', { stage: 'retry_after', category: 'database' });
+      }
+      return failure('rate_limited', 429, wait);
     }
     stage = 'resend';
     const message = JSON.stringify({

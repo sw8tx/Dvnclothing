@@ -247,6 +247,23 @@ test('admission distinguishes exhausted D1 quota and uncertain D1 writes from lo
   assert.equal(messages.length, 0);
 });
 
+test('a known local cooldown survives an unavailable retry-time lookup', async t => {
+  const { request, env, messages } = fixture(t);
+  assert.equal((await request('start', { email: 'member@example.test' })).status, 202);
+  const prepare = env.DVN_AUTH_DB.prepare.bind(env.DVN_AUTH_DB);
+  t.mock.method(console, 'warn', () => {});
+  t.mock.method(env.DVN_AUTH_DB, 'prepare', sql => {
+    if (sql.includes('AS seconds')) throw Error('timing read unavailable');
+    return prepare(sql);
+  });
+  const denied = await request('start', { email: 'member@example.test' });
+  assert.equal(denied.status, 429);
+  assert.deepEqual(await denied.json(), { error: 'rate_limited' });
+  assert.equal(denied.headers.get('Retry-After'), null);
+  assert.equal(denied.headers.get('Set-Cookie'), null);
+  assert.equal(messages.length, 1);
+});
+
 test('limits mail delivery across different addresses on the same IP', async t => {
   const { request, messages } = fixture(t);
   for (let i = 0; i < 20; i++) {
