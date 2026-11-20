@@ -31,3 +31,9 @@ Alternativ den **Inhalt von `dist/`** per Direct Upload hochladen. Nur die expli
 GitHub Actions führt Syntaxprüfung, Countdown- und Sprachwechsel-Tests und Build aus und legt `dvnclothing-pages` als herunterladbares Build-Artefakt ab. Der Workflow führt keinen eigenen Produktionsdeploy aus. Eine vorhandene Cloudflare-Git-Integration kann weiterhin gemäß ihren eingestellten Branch-Regeln deployen.
 
 DNS und Custom Domains werden im Cloudflare-Dashboard verwaltet und sind nicht Bestandteil dieser Quellcodeänderung.
+
+## Google-Anmeldung
+
+Cloudflare Pages Functions verwenden einen serverseitigen Google OpenID Connect Authorization Code Flow. Für den öffentlichen Login müssen in **Cloudflare Pages → Settings → Variables and Secrets** die verschlüsselten Werte `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` und `AUTH_COOKIE_SECRET` hinterlegt werden. Das letzte Secret ist ein zufälliger Wert mit mindestens 32 Zeichen. In der Google Cloud Console muss ein OAuth-Client des Typs **Web application** angelegt werden, dessen autorisierte Redirect-URI exakt `https://dvnclothing.com/api/auth/callback` lautet. Die Google OAuth-Zustimmungsseite muss für die vorgesehenen Nutzer freigegeben sein. Nach dem Eintragen der Secrets die Pages-Site erneut deployen. Die Login-Schaltfläche wird erst nach erfolgreicher Konfiguration sichtbar.
+
+Google liefert nur die Basisidentität (Name und E-Mail). Der Login legt eine signierte, sieben Tage gültige HttpOnly-Sitzung an. Er synchronisiert derzeit weder den lokalen Warenkorb noch Bestellungen zwischen Geräten.

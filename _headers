@@ -18,6 +18,9 @@
 /i18n.js
   Cache-Control: public, max-age=0, must-revalidate
 
+/auth.js
+  Cache-Control: public, max-age=0, must-revalidate
+
 /assets/dvn-wordmark.png
   Cache-Control: public, max-age=0, must-revalidate
 

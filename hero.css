@@ -12,6 +12,11 @@
 .site-header .wordmark { grid-column: 2; grid-row: 1; padding: 7px 0; }
 .site-header .wordmark img { width: 106px; height: auto; mix-blend-mode: multiply; }
 .header-nav, .header-actions { display: flex; align-items: center; }
+.google-auth { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 12px; border: 1px solid #d0d0c9; background: transparent; color: #161714; font: 600 12px "Manrope Variable", Arial, sans-serif; cursor: pointer; white-space: nowrap; }
+.google-auth[hidden] { display: none; }
+.google-auth:hover { background: #edede9; }
+.google-auth:focus-visible { outline: 2px solid #161714; outline-offset: 2px; }
+.google-icon { font: 700 18px Arial, sans-serif; }
 .header-nav { grid-column: 1; grid-row: 1; gap: clamp(18px, 3vw, 44px); }
 .header-actions { justify-content: flex-end; grid-column: 3; grid-row: 1; gap: clamp(8px, 1.8vw, 27px); }
 .header-nav a, .site-header .admin-link, .masthead-bag {
@@ -75,6 +80,8 @@
   .rv-home #launch .rv-countdown-clock { margin: 26px 0 0; width: min(100%, 470px); grid-column: 1; grid-row: auto; }
 }
 @media (max-width: 560px) {
+  .google-auth { padding: 0 7px; font-size: 10px; min-height: 40px; }
+  .google-icon { display: none; }
   .site-header { padding-inline: 15px; }
   .header-nav .header-launch { display: none; }
   .header-nav a { font-size: 11px; }
