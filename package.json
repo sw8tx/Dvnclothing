@@ -3,9 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "check": "node --check shop.js && node --check countdown.js && node --check translations.js && node --check i18n.js && node --check auth.js && node --check scripts/build.mjs && node --check functions/api/auth/_lib.js && node --check functions/api/auth/start.js && node --check functions/api/auth/callback.js && node --check functions/api/auth/session.js && node --check functions/api/auth/logout.js",
+    "check": "node --check shop.js && node --check countdown.js && node --check translations.js && node --check i18n.js && node --check auth.js && node --check scripts/build.mjs && node --check functions/api/auth/_lib.js && node --check functions/api/auth/start.js && node --check functions/api/auth/callback.js && node --check functions/api/auth/session.js && node --check functions/api/auth/logout.js && node --check scripts/setup-google.mjs",
     "test": "node --test",
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "setup:google": "node scripts/setup-google.mjs"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  }
 }
