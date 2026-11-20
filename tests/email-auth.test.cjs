@@ -5,7 +5,7 @@ const { readFileSync } = require('node:fs');
 const path = require('node:path');
 
 const site = 'https://dvnclothing.com';
-function fixture(t, providerStatus = 200) {
+function fixture(t, provider = 200) {
   // Use the production SQL and SQLite constraints, with D1's binding surface.
   const sqlite = new DatabaseSync(':memory:');
   sqlite.exec(readFileSync(path.join(__dirname, '../migrations/0001_email_signin.sql'), 'utf8'));
@@ -40,7 +40,7 @@ function fixture(t, providerStatus = 200) {
     assert.equal(url, 'https://api.resend.com/emails');
     assert.equal(options.headers.Authorization, 'Bearer test-sender');
     messages.push(JSON.parse(options.body));
-    return Response.json({}, { status: providerStatus });
+    return typeof provider === 'function' ? provider(options) : Response.json({}, { status: provider });
   });
   async function request(method, data, cookie = '', origin = site) {
     const { onRequestPost } = await import('../functions/api/auth/email/' + method + '.js');
@@ -99,6 +99,7 @@ test('email cooldown, attempt exhaustion, and expiry prohibit further use', asyn
 });
 
 test('rejects cross-site or malformed requests and fails closed on sender failure', async t => {
+  const log = t.mock.method(console, 'warn', () => {});
   const { request, messages, db } = fixture(t, 403);
   assert.equal((await request('start', { email: 'member@example.test' }, '', 'https://example.test')).status, 403);
   assert.equal((await request('start', { email: 'bad\naddress@example.test' })).status, 400);
@@ -106,7 +107,58 @@ test('rejects cross-site or malformed requests and fails closed on sender failur
   const result = await request('start', { email: 'member@example.test' });
   assert.equal(result.status, 503);
   assert.equal(result.headers.get('Set-Cookie'), null);
-  assert.equal(db.prepare('SELECT active FROM email_login_attempts').get().active, 0);
+  assert.equal(db.prepare('SELECT count(*) AS count FROM email_login_attempts').get().count, 1);
+  assert.equal(messages.length, 1);
+  assert.deepEqual(log.mock.calls.map(call => call.arguments), [
+    ['email_auth_start', { stage: 'resend', attempt: 1, status: 403 }],
+  ]);
+  const code = messages[0].text.match(/lautet (\d{6})/)[1];
+  assert.equal((await request('verify', { code })).status, 400);
+});
+
+test('provider acceptance needs no further D1 writes to release a usable browser challenge', async t => {
+  const { request, env, messages, db } = fixture(t, () => {
+    assert.equal(db.prepare('SELECT active FROM email_login_attempts').get().active, 1);
+    t.mock.method(env.DVN_AUTH_DB, 'prepare', () => { throw new Error('D1 is unavailable'); });
+    return Response.json({ id: 'message-id' });
+  });
+  const sent = await request('start', { email: 'member@example.test' });
+  assert.equal(sent.status, 202);
+  const challenge = sent.headers.getSetCookie()[0].split(';')[0];
+  env.DVN_AUTH_DB.prepare.mock.restore();
+  const code = messages[0].text.match(/lautet (\d{6})/)[1];
+  assert.equal((await request('verify', { code }, challenge)).status, 200);
+});
+
+test('a lost provider response retries the identical delivery and logs only the failure stage', async t => {
+  const log = t.mock.method(console, 'warn', () => {});
+  const deliveries = [];
+  const { request } = fixture(t, options => {
+    deliveries.push([options.headers['Idempotency-Key'], options.body]);
+    if (deliveries.length === 1) throw Error('provider included sensitive recipient metadata');
+    return Response.json({ id: 'same-message-id' });
+  });
+  const sent = await request('start', { email: 'member@example.test' });
+  assert.equal(sent.status, 202);
+  assert.equal(deliveries.length, 2);
+  assert.deepEqual(deliveries[0], deliveries[1]);
+  assert.match(deliveries[0][0], /^dvn-login-[A-Za-z0-9_-]{43}$/);
+  assert.deepEqual(log.mock.calls.map(call => call.arguments), [
+    ['email_auth_start', { stage: 'resend', attempt: 1, category: 'transport' }],
+  ]);
+});
+
+test('a failed D1 reservation logs its stage and never contacts Resend', async t => {
+  const log = t.mock.method(console, 'warn', () => {});
+  const { request, env, messages } = fixture(t);
+  t.mock.method(env.DVN_AUTH_DB, 'batch', () => { throw Error('sensitive SQL message'); });
+  const failed = await request('start', { email: 'member@example.test' });
+  assert.equal(failed.status, 503);
+  assert.equal(failed.headers.get('Set-Cookie'), null);
+  assert.equal(messages.length, 0);
+  assert.deepEqual(log.mock.calls.map(call => call.arguments), [
+    ['email_auth_start', { stage: 'reserve', category: 'internal' }],
+  ]);
 });
 
 test('limits mail delivery across different addresses on the same IP', async t => {
