@@ -45,6 +45,8 @@
 .contact-list dt { margin: 20px 0 2px; font-size: 13px; color: #606060; }
 .contact-list dd { margin: 0; font-size: 16px; line-height: 1.65; overflow-wrap: anywhere; }
 .contact-list address { font-style: normal; }
+.legal-contact-note { margin: 16px 0 0; font-size: 14px; line-height: 1.65; color: #606060; }
+.legal-credit { margin: 0; padding-top: 20px; border-top: 1px solid #dedede; font-size: 13px; line-height: 1.7; color: #606060; scroll-margin-top: 100px; }
 @media(max-width: 620px) { .legal-grid { grid-template-columns: 1fr; gap: 0; } }
 
 html:not([lang="en"]) .imprint-copy[lang="en"],
