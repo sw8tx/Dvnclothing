@@ -229,26 +229,116 @@ for (const [status, name, delay, category, error, count] of [
   });
 }
 
-test('admission distinguishes exhausted D1 quota and uncertain D1 writes from local throttling', async t => {
+test('an unconfirmed reservation never sends email', async t => {
   const log = t.mock.method(console, 'warn', () => {});
   const { request, env, messages } = fixture(t);
-  let n = 0;
-  t.mock.method(env.DVN_AUTH_DB, 'batch', () => {
-    if (!n++) throw Error('D1_ERROR', { cause: Error('daily D1 rows written limit, private context') });
-    return [{ success: true }, { success: false, meta: { changes: 0 } }];
-  });
-  for (const category of ['daily_quota', 'unconfirmed_write']) {
-    const response = await request('start', { email: 'member@example.test' });
-    assert.equal(response.status, 503);
-    assert.deepEqual(await response.json(), { error: category === 'daily_quota' ? 'store_daily_limit' : 'reservation_unconfirmed' });
-    assert.equal(response.headers.get('Set-Cookie'), null);
-    assert.deepEqual(log.mock.calls.at(-1).arguments, ['email_auth_start', { stage: 'reserve', category }]);
-    if (category === 'daily_quota') {
-      const reset = Math.floor(Date.now() / 1000) + Number(response.headers.get('Retry-After'));
-      assert.ok(reset % 86400 <= 1);
-    } else assert.equal(response.headers.get('Retry-After'), null);
-  }
+  t.mock.method(env.DVN_AUTH_DB, 'batch', () => [{ success: false, meta: { changes: 0 } }]);
+  const response = await request('start', { email: 'member@example.test' });
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: 'reservation_unconfirmed' });
+  assert.equal(response.headers.get('Set-Cookie'), null);
+  assert.equal(response.headers.get('Retry-After'), null);
+  assert.deepEqual(log.mock.calls[0].arguments, ['email_auth_start', { stage: 'reserve', category: 'unconfirmed_write' }]);
   assert.equal(messages.length, 0);
+});
+
+for (const stage of ['read', 'write']) {
+  test('a confirmed daily D1 ' + stage + ' outage reports midnight and probes again after recovery', async t => {
+    const { request, env, messages } = fixture(t);
+    t.mock.method(console, 'warn', () => {});
+    let now = Date.UTC(2026, 10, 20, 20, 0);
+    t.mock.method(Date, 'now', () => now);
+    const database = env.DVN_AUTH_DB;
+    const prepare = t.mock.method(database, 'prepare');
+    const batch = t.mock.method(database, 'batch');
+    const operation = stage === 'read' ? prepare : batch;
+    operation.mock.mockImplementationOnce(() => { throw Error('D1_ERROR', { cause: Error('daily D1 rows written limit') }); });
+    const send = () => request('start', { email: 'member@example.test' });
+    for (const seconds of [14400, 14399]) {
+      const response = await send();
+      assert.equal(response.status, 503);
+      assert.deepEqual(await response.json(), { error: 'store_daily_limit' });
+      assert.equal(response.headers.get('Set-Cookie'), null);
+      assert.equal(response.headers.get('Retry-After'), String(seconds));
+      assert.equal(Date.parse(response.headers.get('Date')) + seconds * 1000, Date.UTC(2026, 10, 21));
+      now += 1000;
+    }
+    assert.equal(operation.mock.callCount(), 1);
+    assert.equal(batch.mock.callCount(), stage === 'read' ? 0 : 1);
+    assert.equal(messages.length, 0);
+    now += 60000;
+    assert.equal((await send()).status, 202);
+    assert.equal(messages.length, 1);
+  });
+}
+
+test('the daily outage cache expires at midnight even when discovered seconds before reset', async t => {
+  const { request, env } = fixture(t);
+  t.mock.method(console, 'warn', () => {});
+  let now = Date.UTC(2026, 10, 20, 23, 59, 58);
+  t.mock.method(Date, 'now', () => now);
+  const batch = t.mock.method(env.DVN_AUTH_DB, 'batch');
+  batch.mock.mockImplementationOnce(() => [{ success: false, error: 'D1 free tier daily limit' }]);
+  const send = () => request('start', { email: 'member@example.test' });
+  const denied = await send();
+  assert.equal(denied.headers.get('Retry-After'), '2');
+  now += 2000;
+  assert.equal((await send()).status, 202);
+});
+
+test('ordinary reservation errors do not advertise a daily reset or suppress the next attempt', async t => {
+  const { request, env } = fixture(t);
+  t.mock.method(console, 'warn', () => {});
+  const batch = t.mock.method(env.DVN_AUTH_DB, 'batch');
+  batch.mock.mockImplementationOnce(() => { throw Error('database storage quota exceeded'); });
+  const send = () => request('start', { email: 'member@example.test' });
+  const denied = await send();
+  assert.deepEqual(await denied.json(), { error: 'store_quota' });
+  assert.equal(denied.headers.get('Retry-After'), null);
+  assert.equal((await send()).status, 202);
+});
+
+test('pruning is omitted for fresh data and removes expired entries on the next admission', async t => {
+  const { request, env, db } = fixture(t);
+  const prepare = t.mock.method(env.DVN_AUTH_DB, 'prepare');
+  const send = email => request('start', { email });
+  assert.equal((await send('first@example.test')).status, 202);
+  assert.equal((await send('second@example.test')).status, 202);
+  const deletes = () => prepare.mock.calls.filter(call => /^DELETE/i.test(call.arguments[0])).length;
+  assert.equal(deletes(), 0);
+  db.exec('UPDATE email_login_attempts SET issued_at = issued_at - 3600');
+  assert.equal((await send('first@example.test')).status, 202);
+  assert.equal(deletes(), 1);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM email_login_attempts').get().n, 1);
+});
+
+test('the indexed mailbox window rejects a sixth hourly request and opens at its exact boundary', async t => {
+  const { request, messages } = fixture(t);
+  let now = Date.UTC(2026, 10, 20, 18);
+  t.mock.method(Date, 'now', () => now);
+  const start = () => request('start', { email: 'member@example.test' });
+  for (let i = 0; i < 5; i++) {
+    assert.equal((await start()).status, 202);
+    now += 60000;
+  }
+  const denied = await start();
+  assert.equal(denied.status, 429);
+  assert.equal(denied.headers.get('Retry-After'), '3300');
+  now += 3300000;
+  assert.equal((await start()).status, 202);
+  assert.equal(messages.length, 6);
+});
+
+test('competing sends cannot take the last global slot twice', async t => {
+  const { request, db, messages } = fixture(t);
+  const now = Date.UTC(2026, 10, 20, 18);
+  t.mock.method(Date, 'now', () => now);
+  const insert = db.prepare('INSERT INTO email_login_attempts(challenge_key, code_mac, email_key, ip_key, issued_at) VALUES (?, ?, ?, ?, ?)');
+  for (let i = 0; i < 299; i++) insert.run('c' + i, 'm', 'email' + i, 'ip' + i, now / 1000 - 900);
+  const attempts = await Promise.all(['first', 'second'].map(person => request('start', { email: person + '@example.test' })));
+  assert.deepEqual(attempts.map(result => result.status).sort(), [202, 429]);
+  assert.equal(attempts.find(result => result.status === 429).headers.get('Retry-After'), '2700');
+  assert.equal(messages.length, 1);
 });
 
 test('a known local cooldown survives an unavailable retry-time lookup', async t => {

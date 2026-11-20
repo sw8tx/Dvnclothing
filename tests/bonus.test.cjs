@@ -105,6 +105,57 @@ test('unauthenticated, cross-origin and unavailable database requests fail witho
   sqlite.close();
 });
 
+test('daily D1 limits send a server-relative reset for reads and claims without exposing database errors', async t => {
+  const { onRequestGet, onRequestPost } = await import('../functions/api/account/bonus.js');
+  const { binding, sqlite } = database();
+  t.after(() => sqlite.close());
+  const log = t.mock.method(console, 'warn', () => {});
+  const clock = t.mock.method(Date, 'now', () => Date.parse('2026-12-31T23:59:59.950Z'));
+  const failure = 'Daily D1 rows read limit exceeded: private diagnostics';
+  t.mock.method(binding, 'prepare', () => ({ bind: () => ({
+    first() { throw Error('D1_ERROR', { cause: Error('D1 failure', { cause: Error(failure) }) }); },
+  }) }));
+  t.mock.method(binding, 'batch', () => [{ success: false, error: failure }]);
+  for (const [method, handler, at, remaining] of [
+    ['GET', onRequestGet, '2026-12-31T23:59:59.950Z', '1'],
+    ['POST', onRequestPost, '2027-01-01T00:00:00.001Z', '86400'],
+  ]) {
+    clock.mock.mockImplementation(() => Date.parse(at));
+    const response = await handler(await context(binding, 'google-sub', 'member@example.test', method));
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { error: 'bonus_quota' });
+    assert.equal(response.headers.get('Retry-After'), remaining);
+    assert.equal(response.headers.get('Date'), new Date(at).toUTCString());
+    assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  }
+  assert.deepEqual(log.mock.calls.map(call => call.arguments), [
+    ['account_bonus', { stage: 'read', category: 'daily_quota' }],
+    ['account_bonus', { stage: 'claim', category: 'daily_quota' }],
+  ]);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM welcome_bonuses').get().n, 0);
+});
+
+test('storage limits, transient service outages and schema failures have no daily reset promise', async t => {
+  const { onRequestPost } = await import('../functions/api/account/bonus.js');
+  const { binding, sqlite } = database();
+  t.after(() => sqlite.close());
+  const log = t.mock.method(console, 'warn', () => {});
+  const batch = t.mock.method(binding, 'batch');
+  for (const [message, category] of [
+    ['D1 database unavailable', 'database'],
+    ['D1 free tier storage limit exceeded', 'database'],
+    ['no such column: sensitive', 'schema'],
+  ]) {
+    batch.mock.mockImplementation(() => { throw Error(message); });
+    const response = await onRequestPost(await context(binding, 'google-sub', 'member@example.test'));
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { error: 'bonus_unavailable' });
+    assert.equal(response.headers.get('Retry-After'), null);
+    assert.deepEqual(log.mock.calls.at(-1).arguments, ['account_bonus', { stage: 'claim', category }]);
+  }
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM welcome_bonuses').get().n, 0);
+});
+
 test('sandbox provisioning recovers after Stripe accepted a request but its response was lost', async (t) => {
   const { prepareTestPromotion } = await import('../functions/api/account/_stripe.js');
   const { onRequestPost } = await import('../functions/api/account/bonus.js');

@@ -166,6 +166,8 @@
 .account-method-note { margin: 10px 0 0; color: #5b5e52; font-size: 12px; line-height: 1.5; text-align: center; }
 .account-alert, .account-confirmation { margin: 0 0 16px; padding: 10px 12px; font-size: 13px; line-height: 1.5; border-left: 2px solid; }
 .account-alert { color: #862c23; background: #faf0ed; }
+.account-service-notice, .account-alert[data-tone="service"] { color: #43453f; background: #f5f5f1; border-color: #b5b7aa; }
+.account-service-notice { margin: 12px 0 0; padding: 11px 13px; border-left: 2px solid #b5b7aa; font-size: 13px; line-height: 1.6; }
 .account-confirmation { color: #33463a; background: #f2f5f0; }
 .account-avatar { position: relative; display: inline-grid; flex-shrink: 0; place-items: center; width: 52px; height: 52px; border-radius: 50%; overflow: hidden; background: #151613 url("/assets/brand/dvn-mail-avatar.png") center / cover no-repeat; color: #fff; font-size: 22px; font-weight: 550; }
 .account-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }

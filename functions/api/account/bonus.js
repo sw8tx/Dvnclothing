@@ -26,6 +26,24 @@ function reply(value, status = 200) {
   return noStore(Response.json(value, { status }));
 }
 
+// Only daily usage limits have a known reset time. In particular a storage
+// quota, a schema error or an overloaded database may need different action.
+function databaseFailure(error, stage) {
+  const detail = [error?.message, error?.cause?.message, error?.cause?.cause?.message].join(' ');
+  const daily = /\b(?:daily|today|per day|midnight)\b/i.test(detail)
+    && /\b(?:limits?|quotas?|allowance)\b/i.test(detail);
+  const category = daily ? 'daily_quota'
+    : /no such (?:table|column)|has no column named|syntax error|ambiguous column/i.test(detail) ? 'schema' : 'database';
+  console.warn('account_bonus', { stage, category });
+  if (!daily) return reply({ error: 'bonus_unavailable' }, 503);
+
+  const now = Date.now();
+  const response = reply({ error: 'bonus_quota' }, 503);
+  response.headers.set('Date', new Date(now).toUTCString());
+  response.headers.set('Retry-After', String(86400 - Math.floor(now / 1000) % 86400));
+  return response;
+}
+
 function generateCode() {
   const alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
   const random = crypto.getRandomValues(new Uint8Array(20));
@@ -53,6 +71,7 @@ async function handle(context, claim) {
   const db = env.DVN_AUTH_DB;
   if (!db?.prepare) return reply({ error: 'bonus_unavailable' }, 503);
 
+  const stage = claim ? 'claim' : 'read';
   try {
     const key = await accountKey(user.email);
     const query = (sql) => db.prepare(sql).bind(key, user.id);
@@ -63,6 +82,8 @@ async function handle(context, claim) {
         db.prepare(issue).bind(key, user.id, generateCode()),
         query(retireDuplicates), query(read), query(retiredCodes),
       ]);
+      const failed = results.find(result => result.success === false);
+      if (failed) throw new Error(failed.error);
       row = results[2].results[0];
       retired = results[3].results;
     } else {
@@ -82,8 +103,8 @@ async function handle(context, claim) {
       else await work;
     }
     return reply({ bonus: row ? { code: row.code, percentOff: 15, firstOrderOnly: true } : null });
-  } catch {
-    return reply({ error: 'bonus_unavailable' }, 503);
+  } catch (error) {
+    return databaseFailure(error, stage);
   }
 }
 

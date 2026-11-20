@@ -3,14 +3,21 @@ import { cookie, random, seal, setCookie } from '../_lib.js';
 import { rawIdentity } from '../_profile.js';
 import { body, challengeCookie, generateCode, json, lifetime, mac, normalizeEmail, sameLinkMailbox, validateRequest } from './_shared.js';
 
+// Each indexed probe stops once it reaches the first disqualifying row.
+const preflight = `
+  SELECT (SELECT issued_at FROM email_login_attempts WHERE email_key = ?1 AND issued_at > ?2 - 60
+          ORDER BY issued_at DESC LIMIT 1) AS recent,
+         EXISTS (SELECT 1 FROM email_login_attempts WHERE issued_at <= ?2 - 3600) AS needs_prune
+`;
+
 // Admission and quota reservation are one SQLite write, including under concurrent sends.
 const reserve = `
   INSERT INTO email_login_attempts (challenge_key, code_mac, email_key, ip_key, issued_at, active)
   SELECT ?1, ?2, ?3, ?4, ?5, 1
   WHERE NOT EXISTS (SELECT 1 FROM email_login_attempts WHERE email_key = ?3 AND issued_at > ?5 - 60)
-    AND (SELECT count(*) FROM email_login_attempts WHERE email_key = ?3 AND issued_at > ?5 - 3600) < 5
-    AND (SELECT count(*) FROM email_login_attempts WHERE ip_key = ?4 AND issued_at > ?5 - 3600) < 20
-    AND (SELECT count(*) FROM email_login_attempts WHERE issued_at > ?5 - 3600) < 300
+    AND NOT EXISTS (SELECT 1 FROM email_login_attempts WHERE email_key = ?3 AND issued_at > ?5 - 3600 LIMIT 1 OFFSET 4)
+    AND NOT EXISTS (SELECT 1 FROM email_login_attempts WHERE ip_key = ?4 AND issued_at > ?5 - 3600 LIMIT 1 OFFSET 19)
+    AND NOT EXISTS (SELECT 1 FROM email_login_attempts WHERE issued_at > ?5 - 3600 LIMIT 1 OFFSET 299)
 `;
 
 // Only denied requests need the next release time for the overlapping windows.
@@ -30,13 +37,37 @@ function failure(error, status, retrySeconds) {
   return result;
 }
 
+// Per-isolate negative cache for confirmed daily D1 failures. Probe again within a
+// minute in case billing changes, and immediately when the UTC allowance resets.
+const dailyProbeAt = new WeakMap();
+
+function databaseCategory(error) {
+  const message = [error?.message, error?.cause?.message, error?.cause?.cause?.message].join(' ');
+  const daily = /\b(?:daily|per day|in a day|today|midnight)\b/i.test(message);
+  if (daily && /\b(?:quotas?|limits?|allowance|maximum)\b/i.test(message)) return 'daily_quota';
+  return /\b(?:quotas?|free tier)\b/i.test(message) ? 'quota' : 'database';
+}
+
+function rememberDailyFailure(db, now) {
+  dailyProbeAt.set(db, now + Math.min(60, 86400 - now % 86400));
+}
+
+function dailyFailure(now) {
+  const untilReset = 86400 - now % 86400;
+  const result = failure('store_daily_limit', 503, untilReset);
+  result.headers.set('Date', new Date(now * 1000).toUTCString());
+  return result;
+}
+
 async function cooldown(db, emailKey, ipKey, now, minimumWait) {
   let wait = minimumWait;
   try {
     const until = await db.prepare(nextAdmission).bind(emailKey, ipKey, now).first();
     if (Number.isInteger(until?.seconds) && until.seconds > 0) wait = Math.max(wait || 0, until.seconds);
-  } catch {
-    console.warn('email_auth_start', { stage: 'retry_after', category: 'database' });
+  } catch (error) {
+    const category = databaseCategory(error);
+    if (category === 'daily_quota') rememberDailyFailure(db, Math.floor(Date.now() / 1000));
+    console.warn('email_auth_start', { stage: 'retry_after', category });
   }
   return failure('rate_limited', 429, wait);
 }
@@ -104,6 +135,7 @@ export async function onRequestPost({ request, env }) {
   const challenge = random();
   const code = generateCode();
   const secret = env.AUTH_COOKIE_SECRET;
+  const db = env.DVN_AUTH_DB;
   let stage = 'prepare';
   try {
     const claims = { challenge, email, exp: now + lifetime };
@@ -114,6 +146,7 @@ export async function onRequestPost({ request, env }) {
       const sessionKey = await mac(secret, 'link-session', cookie(request, '__Host-dvn-session'));
       claims.linking = { googleId: google.id, sessionKey };
     }
+    if (dailyProbeAt.get(db) > now) return dailyFailure(now);
     const [challengeKey, codeMac, emailKey, ipKey, pending] = await Promise.all([
       mac(secret, 'challenge', challenge), mac(secret, 'code', challenge + ':' + code),
       mac(secret, 'email', email.toLowerCase()), mac(secret, 'ip', request.headers.get('CF-Connecting-IP') || 'unknown'),
@@ -123,24 +156,26 @@ export async function onRequestPost({ request, env }) {
     // acceptance releases this cookie, which is required to use the active row.
     const accepted = json({ sent: true }, 202);
     setCookie(accepted, challengeCookie, pending, lifetime);
-    const db = env.DVN_AUTH_DB;
     stage = 'reserve';
-    // Most rapid repeats can be declined with an indexed read, including
-    // while D1 cannot accept writes. The INSERT still guards concurrent sends.
-    let recent;
+    let check;
     try {
-      recent = await db.prepare(
-        'SELECT issued_at FROM email_login_attempts WHERE email_key = ? AND issued_at > ? ORDER BY issued_at DESC LIMIT 1'
-      ).bind(emailKey, now - 60).first();
-    } catch {
-      // The atomic reservation below remains authoritative when this read fails.
+      check = await db.prepare(preflight).bind(emailKey, now).first();
+    } catch (error) {
+      // A positively identified daily outage affects reservation too; do not retry D1.
+      if (databaseCategory(error) === 'daily_quota') throw error;
+      // For other read failures, the atomic reservation still enforces all limits.
     }
-    if (recent) return await cooldown(db, emailKey, ipKey, now, recent.issued_at + 60 - now);
-    const [prune, admission] = await db.batch([
-      db.prepare('DELETE FROM email_login_attempts WHERE issued_at <= ?').bind(now - 3600),
-      db.prepare(reserve).bind(challengeKey, codeMac, emailKey, ipKey, now),
-    ]);
-    if (!prune || prune.success === false || !admission || admission.success === false || ![0, 1].includes(admission.meta?.changes)) {
+    if (check?.recent != null) return await cooldown(db, emailKey, ipKey, now, check.recent + 60 - now);
+    const statements = [];
+    if (check?.needs_prune !== 0) {
+      statements.push(db.prepare('DELETE FROM email_login_attempts WHERE issued_at <= ?').bind(now - 3600));
+    }
+    statements.push(db.prepare(reserve).bind(challengeKey, codeMac, emailKey, ipKey, now));
+    const results = await db.batch(statements);
+    const failed = results?.find(result => result?.success === false && result.error);
+    if (failed) throw Error(failed.error);
+    const admission = results?.at(-1);
+    if (results?.length !== statements.length || results.some(result => !result || result.success === false) || ![0, 1].includes(admission?.meta?.changes)) {
       console.warn('email_auth_start', { stage, category: 'unconfirmed_write' });
       return failure('reservation_unconfirmed', 503);
     }
@@ -154,15 +189,13 @@ export async function onRequestPost({ request, env }) {
     const deliveryFailure = await submitMail(env, message, 'dvn-login-' + challengeKey);
     return deliveryFailure ?? accepted;
   } catch (error) {
-    let category = 'internal';
-    if (stage === 'reserve') {
-      const messages = [error?.message, error?.cause?.message].join(' ');
-      if (/quota|daily.*limit|limit.*daily|free tier/i.test(messages)) {
-        category = /daily|per day|midnight/i.test(messages) ? 'daily_quota' : 'quota';
-      } else category = 'database';
-    }
+    const category = stage === 'reserve' ? databaseCategory(error) : 'internal';
     console.warn('email_auth_start', { stage, category });
-    if (category === 'daily_quota') return failure('store_daily_limit', 503, 86400 - (Math.floor(Date.now() / 1000) % 86400));
+    if (category === 'daily_quota') {
+      const observedAt = Math.floor(Date.now() / 1000);
+      rememberDailyFailure(db, observedAt);
+      return dailyFailure(observedAt);
+    }
     if (category === 'quota') return failure('store_quota', 503);
     return failure(stage === 'reserve' ? 'store_unavailable' : 'unavailable', 503);
   }

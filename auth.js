@@ -24,11 +24,11 @@
       limit: 'Zu viele Versuche. Warte einen Moment und versuche es erneut.', sendError: 'Der Code konnte nicht versendet werden. Bitte versuche es erneut.',
       addressInvalid: 'Prüfe die Schreibweise deiner E-Mail-Adresse.',
       sendUnconfirmed: 'Wir konnten den Versand nicht bestätigen. Prüfe deine Verbindung und versuche es noch einmal.',
-      sendDbDaily: 'Das Tageslimit für die Anmeldung per E-Mail ist erreicht.',
-      googleInstead: 'Du kannst dich auch mit Google anmelden.',
-      sendDbQuota: 'Die Anmeldung per E-Mail hat ihr technisches Limit erreicht. Bitte versuche es später noch einmal.',
+      sendDbDaily: 'Wir können dir gerade keinen Anmeldecode schicken.',
+      googleInstead: 'Mit Google kannst du dich jetzt anmelden.',
+      sendDbQuota: 'Wir können dir gerade keinen Anmeldecode schicken. Bitte versuche es später noch einmal.',
       sendBusy: 'Der E-Mail-Versand ist gerade ausgelastet.',
-      sendQuota: 'Das Versandlimit ist erreicht. Bitte versuche es später erneut.',
+      sendQuota: 'Der Versand von Anmeldecodes pausiert gerade. Bitte versuche es später noch einmal.',
       sendOffline: 'Die Anmeldung per E-Mail ist vorübergehend nicht verfügbar. Bitte versuche es später erneut.',
       sendForbidden: 'Lade die Shopseite neu und fordere den Code noch einmal an.',
       nextTry: 'Erneut versuchen ab {time} Uhr.',
@@ -44,7 +44,9 @@
       sendBonus: 'Code per E-Mail erhalten', sendingBonus: 'Wird gesendet …', bonusSent: 'Dein Code wurde an {email} versendet.',
       bonusMailError: 'Dein Code konnte nicht per E-Mail gesendet werden. Bitte versuche es erneut.',
       bonusIssued: 'Dein persönlicher Willkommenscode', bonusLoading: 'Dein Willkommenscode wird geladen …',
-      bonusOffline: 'Dein Willkommenscode ist gerade nicht verfügbar.', copyCode: 'Code kopieren', copied: 'Code kopiert', manualCopy: 'Wähle den Code aus und kopiere ihn.',
+      bonusOffline: 'Wir können deinen Rabattcode gerade nicht laden. Du kannst ihn später hier im Konto abrufen.',
+      bonusPaused: 'Dein Rabattcode lässt sich gerade nicht abrufen. Schau ab {time} Uhr wieder hier im Konto vorbei.',
+      bonusRetry: 'Rabattcode laden', copyCode: 'Code kopieren', copied: 'Code kopiert', manualCopy: 'Wähle den Code aus und kopiere ihn.',
       linkGoogle: 'Google-Konto verbinden', linkEmail: 'E-Mail-Anmeldung verbinden', linked: 'Deine Anmeldemethoden sind verbunden.',
       linkConflict: 'Diese Anmeldemethode ist bereits mit einem anderen Konto verbunden.', linkFailed: 'Die Verbindung konnte nicht abgeschlossen werden.',
       linkAddress: 'Zur Bestätigung deiner E-Mail-Adresse haben wir einen Code an {email} gesendet.', backAccount: 'Zurück zum Konto',
@@ -73,14 +75,14 @@
       limit: 'Too many attempts. Wait a moment and try again.', sendError: 'We couldn’t send your code. Please try again.',
       addressInvalid: 'Check the spelling of your email address.',
       sendUnconfirmed: 'We couldn’t confirm whether your code was sent. Check your connection and try again.',
-      sendDbDaily: 'Email sign-in has reached its daily limit.',
-      googleInstead: 'You can also sign in with Google.',
-      sendDbQuota: 'Email sign-in has reached its service limit. Please try again later.',
+      sendDbDaily: 'We can’t send you a sign-in code right now.',
+      googleInstead: 'You can sign in with Google now.',
+      sendDbQuota: 'We can’t send you a sign-in code right now. Please try again later.',
       sendBusy: 'Email delivery is busy right now.',
-      sendQuota: 'The email sending limit has been reached. Please try again later.',
+      sendQuota: 'Sign-in emails are paused for now. Please try again later.',
       sendOffline: 'Email sign-in is temporarily unavailable. Please try again later.',
       sendForbidden: 'Reload the shop page and request your code again.',
-      nextTry: 'Try again at {time}.',
+      nextTry: 'Try again from {time}.',
       verifyError: 'We couldn’t verify your code. Please try again.', logoutError: 'We couldn’t sign you out. Please try again.',
       profileError: 'We couldn’t save your profile. Check the details and try again.',
       denied: 'Sign-in was cancelled or unsuccessful.', expired: 'Please sign in again.',
@@ -93,7 +95,9 @@
       sendBonus: 'Email me my code', sendingBonus: 'Sending …', bonusSent: 'Your code was sent to {email}.',
       bonusMailError: 'We couldn’t email your code. Please try again.',
       bonusIssued: 'Your personal welcome code', bonusLoading: 'Loading your welcome code …',
-      bonusOffline: 'Your welcome code is temporarily unavailable.', copyCode: 'Copy code', copied: 'Code copied', manualCopy: 'Select the code and copy it.',
+      bonusOffline: 'We can’t load your discount code right now. You can come back to your account to get it later.',
+      bonusPaused: 'We can’t load your discount code right now. Check your account again from {time}.',
+      bonusRetry: 'Load discount code', copyCode: 'Copy code', copied: 'Code copied', manualCopy: 'Select the code and copy it.',
       linkGoogle: 'Connect Google account', linkEmail: 'Connect email sign-in', linked: 'Your sign-in methods are connected.',
       linkConflict: 'This sign-in method is already connected to another account.', linkFailed: 'We couldn’t connect your sign-in methods.',
       linkAddress: 'We sent a code to {email} to verify your email address.', backAccount: 'Back to account',
@@ -112,7 +116,7 @@
   let action = '';
   let error = '';
   let feedback = '';
-  let sendRetryAt = 0;
+  let sendRetry;
   let cartIntent = false;
   let email = '';
   let resendAt = 0;
@@ -121,6 +125,8 @@
   let linkFlow = false;
   let confirmed = false;
   let afterLogin = '';
+  let bonusRetry;
+  let bonusTimer;
   let bonusOwner = '';
   let bonusState = 'idle';
   let bonusCode = '';
@@ -141,6 +147,8 @@
     const changed = !sessionKnown || JSON.stringify(user) !== JSON.stringify(next);
     if ((next?.id || '') !== bonusOwner || next?.linkedProviders?.join(',') !== user?.linkedProviders?.join(',')) {
       bonusRevision++;
+      clearTimeout(bonusTimer);
+      bonusRetry = null;
       bonusOwner = next?.id || '';
       bonusCode = bonusNotice = '';
       bonusState = bonusEmail = 'idle';
@@ -184,6 +192,22 @@
     if (!remaining && !seconds) clearInterval(timer);
   }
 
+  // Use the server clock for the time shown to the customer and the local
+  // clock for the timer. Receiving the response can take several seconds.
+  function retryWindow(response) {
+    const seconds = Number(response.headers.get('Retry-After'));
+    if (!Number.isInteger(seconds) || seconds <= 0 || seconds > 86400) return null;
+    const local = Date.now();
+    const server = Date.parse(response.headers.get('Date'));
+    return { at: (Number.isFinite(server) ? server : local) + seconds * 1000, until: local + seconds * 1000, checkedAt: local };
+  }
+
+  function retryTime(at) {
+    return new Intl.DateTimeFormat(language() === 'en' ? 'en-GB' : 'de-DE', {
+      dateStyle: 'medium', timeStyle: 'short',
+    }).format(at);
+  }
+
   function renderBonus() {
     const t = words[language()];
     const visible = page === 'member' && Boolean(user?.id);
@@ -191,13 +215,14 @@
     if (!visible) return;
     const issued = bonusState === 'issued';
     const failed = bonusState === 'failed';
+    const paused = bonusState === 'paused' && bonusRetry;
     const claim = find('[data-account-bonus-claim]');
     find('[data-account-bonus-congrats]').hidden = !issued || !newBonus;
-    find('[data-account-bonus-description]').textContent = issued ? t.bonusIssued : failed ? t.bonusOffline : bonusState === 'linkNeeded' ? t.bonusLink : t.bonusLoading;
+    find('[data-account-bonus-description]').textContent = paused ? t.bonusPaused.replace('{time}', retryTime(bonusRetry.at)) : issued ? t.bonusIssued : failed ? t.bonusOffline : bonusState === 'linkNeeded' ? t.bonusLink : t.bonusLoading;
     find('[data-account-bonus-row]').hidden = !issued;
     find('[data-account-bonus-code]').textContent = bonusCode;
     claim.hidden = !failed;
-    claim.textContent = t.retry;
+    claim.textContent = t.bonusRetry;
     const emailButton = find('[data-account-bonus-email]');
     emailButton.hidden = !issued;
     emailButton.disabled = bonusEmail === 'sending' || bonusEmail === 'sent';
@@ -213,13 +238,15 @@
   async function readBonus(method) {
     const response = await fetch('/api/account/bonus', { method, credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Bonus unavailable');
+    if (!response.ok) throw Object.assign(new Error(data.error || 'Bonus unavailable'), { retry: retryWindow(response) });
     return data.bonus;
   }
 
   async function fetchBonus() {
     const revision = bonusRevision;
     if (!bonusOwner || bonusState === 'loading') return;
+    clearTimeout(bonusTimer);
+    bonusRetry = null;
     bonusState = 'loading';
     renderBonus();
     try {
@@ -235,7 +262,18 @@
       bonusState = 'issued';
     } catch (err) {
       if (revision !== bonusRevision) return;
-      bonusState = err.message === 'account_link_required' ? 'linkNeeded' : 'failed';
+      if (err.message === 'bonus_quota' && err.retry) {
+        bonusState = 'paused';
+        bonusRetry = err.retry;
+        bonusTimer = setTimeout(() => {
+          if (revision !== bonusRevision) return;
+          bonusState = 'idle';
+          bonusRetry = null;
+          if (dialog.open && page === 'member') fetchBonus();
+        }, Math.max(0, bonusRetry.until - Date.now()));
+      } else {
+        bonusState = err.message === 'account_link_required' ? 'linkNeeded' : 'failed';
+      }
     }
     renderBonus();
   }
@@ -287,17 +325,22 @@
     find('[data-account-verify]').textContent = action === 'verify' ? t.checking : t.verify;
     code.disabled = Boolean(action);
     const alert = find('[data-account-error]');
-    alert.hidden = !error;
-    alert.textContent = t[error] || '';
-    if (error && sendRetryAt > Date.now()) {
-      const time = new Intl.DateTimeFormat(language() === 'en' ? 'en-GB' : 'de-DE', { timeStyle: 'medium' }).format(sendRetryAt);
-      alert.textContent += ' ' + t.nextTry.replace('{time}', time);
+    const service = ['sendDbDaily', 'sendDbQuota', 'sendBusy', 'sendQuota', 'sendOffline'].includes(error);
+    const inline = page === 'guest' && service;
+    let message = t[error] || '';
+    if (error && sendRetry && sendRetry.until > Date.now()) {
+      message += ' ' + t.nextTry.replace('{time}', retryTime(sendRetry.at));
     }
-    if (page === 'guest' && session.configured && (error === 'sendDbQuota' || error === 'sendDbDaily')) {
-      alert.textContent += ' ' + t.googleInstead;
-    }
+    if (inline && session.configured) message += ' ' + t.googleInstead;
+    alert.hidden = !error || inline;
+    alert.dataset.tone = service ? 'service' : 'error';
+    alert.textContent = inline ? '' : message;
+    const notice = find('[data-account-mail-service]');
+    notice.hidden = !inline;
+    notice.textContent = inline ? message : '';
+    find('[data-account-mail-hint]').hidden = inline;
     const confirmation = find('[data-account-feedback]');
-    confirmation.hidden = !feedback;
+    confirmation.hidden = !feedback || (feedback === 'connected' && page === 'member');
     confirmation.textContent = t[feedback] || '';
     find('[data-account-profile-status]').hidden = Boolean(session.profileConfigured);
     find('[data-account-profile-retry]').hidden = Boolean(session.profileConfigured);
@@ -342,10 +385,9 @@
       const response = await fetch('/api/auth/' + path, options);
       if (!response.ok) {
         const details = await response.json().catch(() => null);
-        const retry = Number(response.headers.get('Retry-After'));
         throw Object.assign(new Error('Account request failed'), {
           status: response.status, reason: details?.error,
-          retrySeconds: Number.isInteger(retry) && retry > 0 && retry <= 86400 ? retry : 0,
+          retry: retryWindow(response),
         });
       }
       if (response.status === 204) return null;
@@ -397,6 +439,12 @@
 
   function show() {
     if (dialog.open) return;
+    // A reopened account can pick up an early service recovery or plan change.
+    if (bonusState === 'paused' && Date.now() >= bonusRetry.checkedAt + 60000) {
+      clearTimeout(bonusTimer);
+      bonusRetry = null;
+      bonusState = 'idle';
+    }
     previousFocus = document.activeElement;
     dialog.showModal();
     if (page === 'code') { clearInterval(timer); timer = setInterval(renderClock, 1000); }
@@ -419,7 +467,7 @@
   async function perform(nextAction, errorKey, task) {
     if (action) return;
     action = nextAction;
-    sendRetryAt = 0;
+    sendRetry = null;
     feedback = error = '';
     render();
     try {
@@ -438,10 +486,8 @@
       }
       else if (err.status === 503 && nextAction === 'save') error = 'profileOffline';
       else if (nextAction === 'send') {
-        if (err.retrySeconds) {
-          sendRetryAt = Date.now() + err.retrySeconds * 1000;
-          if (page === 'code') resendAt = Math.max(resendAt, sendRetryAt);
-        }
+        sendRetry = err.retry;
+        if (page === 'code' && sendRetry) resendAt = Math.max(resendAt, sendRetry.until);
         if (err.status === 429) error = 'limit';
         else if (err.status === 400) error = 'addressInvalid';
         else if (err.status === 401) error = 'expired';
@@ -500,7 +546,7 @@
     field.addEventListener('input', () => {
       if (!error) return;
       error = '';
-      sendRetryAt = 0;
+      sendRetry = null;
       render();
     });
   }

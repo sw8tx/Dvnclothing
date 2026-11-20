@@ -148,6 +148,7 @@
           <label for="account-mail" data-account-copy="emailLabel">E-Mail-Adresse</label>
           <input id="account-mail" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254" required placeholder="name@beispiel.de">
           <button class="account-primary" type="submit" data-account-submit-email data-account-copy="send">Mit E-Mail fortfahren</button>
+          <p class="account-service-notice" data-account-mail-service role="status" hidden></p>
           <p class="account-method-note" data-account-mail-hint>Wir senden dir einen einmaligen Anmeldecode.</p>
         </form>
         <p class="account-method-note"><a href="/privacy.html" data-i18n="privacy.title">Datenschutzerklärung</a></p>
@@ -171,7 +172,7 @@
         <section class="account-bonus" data-account-bonus aria-labelledby="account-bonus-title" hidden>
           <p class="account-bonus-congrats" data-account-bonus-congrats data-account-copy="congrats" hidden>Glückwunsch und willkommen bei DVN!</p>
           <h3 id="account-bonus-title" data-account-copy="bonusTitle">15 % auf deine erste Bestellung</h3>
-          <p data-account-bonus-description></p>
+          <p data-account-bonus-description aria-live="polite"></p>
           <div class="account-bonus-code" data-account-bonus-row hidden><code data-account-bonus-code></code>
             <button type="button" class="account-copy-button" data-account-bonus-copy data-account-copy="copyCode">Code kopieren</button>
           </div>
