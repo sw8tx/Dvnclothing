@@ -14,9 +14,15 @@ export function googlePicture(value) {
   }
 }
 
-export async function identity(request, env) {
+export async function rawIdentity(request, env) {
   if (!(env.AUTH_COOKIE_SECRET?.length >= 32)) return null;
   const claims = await unseal(cookie(request, '__Host-dvn-session'), env.AUTH_COOKIE_SECRET);
+  return identityFromClaims(claims);
+}
+
+export const identity = rawIdentity;
+
+export async function identityFromClaims(claims) {
   if (!claims || typeof claims.sub !== 'string' || !claims.sub || claims.sub.length > 320 ||
       typeof claims.email !== 'string' || !claims.email || claims.email.length > 254) return null;
   const email = claims.email.trim();
@@ -33,26 +39,35 @@ export async function identity(request, env) {
   };
 }
 
-export function withOverrides(user, row) {
-  return { ...user, name: row?.name ?? user.name, picture: row?.avatar ?? user.picture };
-}
-
 export async function readProfile(user, env) {
-  if (!profileConfigured(env)) return user;
-  const row = await env.DVN_AUTH_DB.prepare('SELECT name, avatar FROM user_profiles WHERE id = ?')
-    .bind(user.id).first();
-  return withOverrides(user, row);
+  const own = { ...user, linkedProviders: [user.provider], cartAliases: [] };
+  if (!profileConfigured(env)) return own;
+  const row = await env.DVN_AUTH_DB.prepare(`
+    SELECT link.email_id, link.google_id,
+      COALESCE(primary_profile.name, other_profile.name, link.default_name) AS name,
+      COALESCE(primary_profile.avatar, other_profile.avatar, link.default_picture) AS picture
+    FROM (SELECT ? AS raw_id) AS key
+    LEFT JOIN account_links link ON link.google_id = key.raw_id OR link.email_id = key.raw_id
+    LEFT JOIN user_profiles primary_profile ON primary_profile.id = COALESCE(link.email_id, key.raw_id)
+    LEFT JOIN user_profiles other_profile ON other_profile.id = link.google_id
+  `).bind(user.id).first();
+  return {
+    ...own, id: row?.email_id ?? user.id, name: row?.name ?? user.name,
+    picture: row?.picture ?? user.picture,
+    linkedProviders: row?.google_id ? ['email', 'google'] : own.linkedProviders,
+    cartAliases: row?.google_id ? [row.google_id] : [],
+  };
 }
 
 export async function saveProfile(user, changes, env) {
-  // Merge only the explicitly supplied fields in one write, including the
-  // returned snapshot, so a stale tab cannot undo a concurrent avatar update.
-  const row = await env.DVN_AUTH_DB.prepare(
-    `INSERT INTO user_profiles (id, name, avatar) VALUES (?, ?, ?)
+  // Resolve the canonical account and write in one statement, even if linking
+  // and editing from two tabs happen concurrently.
+  await env.DVN_AUTH_DB.prepare(
+    `INSERT INTO user_profiles (id, name, avatar)
+     VALUES (COALESCE((SELECT email_id FROM account_links WHERE google_id = ?1), ?1), ?2, ?3)
      ON CONFLICT(id) DO UPDATE SET
        name = COALESCE(excluded.name, user_profiles.name),
-       avatar = COALESCE(excluded.avatar, user_profiles.avatar)
-     RETURNING name, avatar`
-  ).bind(user.id, changes.name ?? null, changes.avatar ?? null).first();
-  return withOverrides(user, row);
+       avatar = COALESCE(excluded.avatar, user_profiles.avatar)`
+  ).bind(user.id, changes.name ?? null, changes.avatar ?? null).run();
+  return readProfile(user, env);
 }

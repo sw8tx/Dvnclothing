@@ -64,6 +64,15 @@ export function normalizeEmail(value) {
   return local + '@' + domain.toLowerCase();
 }
 
+// Compare the two already proven mailboxes without altering the email account's subject.
+export function sameLinkMailbox(first, second) {
+  const a = normalizeEmail(first);
+  const b = normalizeEmail(second);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  return /@(?:gmail|googlemail)\.com$/.test(a) && a.toLowerCase() === b.toLowerCase();
+}
+
 export function generateCode() {
   const sample = new Uint32Array(1);
   const upper = 2 ** 32 - (2 ** 32 % 1_000_000);

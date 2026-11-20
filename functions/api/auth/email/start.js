@@ -1,5 +1,7 @@
-import { random, seal, setCookie } from '../_lib.js';
-import { body, challengeCookie, generateCode, json, lifetime, mac, normalizeEmail, validateRequest } from './_shared.js';
+import { signInMessage } from './_message.js';
+import { cookie, random, seal, setCookie } from '../_lib.js';
+import { rawIdentity } from '../_profile.js';
+import { body, challengeCookie, generateCode, json, lifetime, mac, normalizeEmail, sameLinkMailbox, validateRequest } from './_shared.js';
 
 // Admission and quota reservation are one SQLite write, including under concurrent sends.
 const reserve = `
@@ -48,10 +50,18 @@ export async function onRequestPost({ request, env }) {
   const secret = env.AUTH_COOKIE_SECRET;
   let stage = 'prepare';
   try {
+    const claims = { challenge, email, exp: now + lifetime };
+    if (payload.purpose === 'link') {
+      const google = await rawIdentity(request, env);
+      if (!google || google.provider !== 'google') return json({ error: 'login_required' }, 401);
+      if (!sameLinkMailbox(google.email, email)) return json({ error: 'link_conflict' }, 409);
+      const sessionKey = await mac(secret, 'link-session', cookie(request, '__Host-dvn-session'));
+      claims.linking = { googleId: google.id, sessionKey };
+    }
     const [challengeKey, codeMac, emailKey, ipKey, pending] = await Promise.all([
       mac(secret, 'challenge', challenge), mac(secret, 'code', challenge + ':' + code),
       mac(secret, 'email', email.toLowerCase()), mac(secret, 'ip', request.headers.get('CF-Connecting-IP') || 'unknown'),
-      seal({ challenge, email, exp: now + lifetime }, secret + ':email-challenge-v1'),
+      seal(claims, secret + ':email-challenge-v1'),
     ]);
     // Prepare the browser response before sending. Only a confirmed provider
     // acceptance releases this cookie, which is required to use the active row.
@@ -64,13 +74,11 @@ export async function onRequestPost({ request, env }) {
       db.prepare(reserve).bind(challengeKey, codeMac, emailKey, ipKey, now),
     ]);
     if (admission.meta.changes !== 1) return json({ error: 'rate_limited' }, 429);
-    const en = (payload.language ?? payload.lang) === 'en';
     stage = 'resend';
     const message = JSON.stringify({
-      from: 'DVN CLOTHING <account@dvnclothing.com>', to: [email],
-      subject: en ? 'Your DVN sign-in code' : 'Dein DVN-Anmeldecode',
-      text: en ? 'Your DVN sign-in code is ' + code + '. It is valid for 10 minutes in the browser where you requested it. If you did not request this code, ignore this email.'
-        : 'Dein DVN-Anmeldecode lautet ' + code + '. Er gilt 10 Minuten in dem Browser, in dem du ihn angefordert hast. Falls du diesen Code nicht angefordert hast, ignoriere diese E-Mail.',
+      from: 'DVN CLOTHING <account@dvnclothing.com>',
+      to: [email],
+      ...signInMessage(code, payload.language ?? payload.lang, lifetime),
     });
     if (await submitMail(env, message, 'dvn-login-' + challengeKey)) return accepted;
     return json({ error: 'unavailable' }, 503);

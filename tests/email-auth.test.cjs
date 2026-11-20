@@ -65,7 +65,12 @@ test('a mailed code only works once in the requesting browser', async t => {
   const challenge = pending.split(';')[0];
   assert.equal(messages[0].from, 'DVN CLOTHING <account@dvnclothing.com>');
   assert.deepEqual(messages[0].to, ['member@example.test']);
-  const code = messages[0].text.match(/Your DVN sign-in code is (\d{6})/)[1];
+  const code = messages[0].text.match(/DVN-(\d{6})/)[1];
+  assert.ok(messages[0].html.includes('DVN-' + code));
+  assert.ok(messages[0].html.includes('assets/brand/dvn-mail-avatar.png'));
+  assert.ok(messages[0].html.includes(site + '/privacy.html'));
+  assert.ok(messages[0].text.includes(site + '/impressum.html'));
+  assert.ok(!messages[0].subject.includes(code));
   const row = db.prepare('SELECT * FROM email_login_attempts').get();
   assert.notEqual(row.code_mac, code);
   assert.notEqual(row.email_key, 'member@example.test');
@@ -87,14 +92,14 @@ test('email cooldown, attempt exhaustion, and expiry prohibit further use', asyn
   const cookie = first.headers.getSetCookie()[0].split(';')[0];
   assert.equal((await request('start', { email: 'MEMBER@example.test' })).status, 429);
   assert.equal(messages.length, 1);
-  const code = messages[0].text.match(/lautet (\d{6})/)[1];
+  const code = messages[0].text.match(/DVN-(\d{6})/)[1];
   const wrong = String((Number(code) + 1) % 1_000_000).padStart(6, '0');
   for (let i = 0; i < 5; i++) assert.equal((await request('verify', { code: wrong }, cookie)).status, 400);
   assert.equal((await request('verify', { code }, cookie)).status, 400);
   assert.equal(db.prepare('SELECT tries FROM email_login_attempts').get().tries, 5);
   const fresh = await request('start', { email: 'other@example.test' });
   db.exec('UPDATE email_login_attempts SET issued_at = issued_at - 601');
-  const other = messages[1].text.match(/lautet (\d{6})/)[1];
+  const other = messages[1].text.match(/DVN-(\d{6})/)[1];
   assert.equal((await request('verify', { code: other }, fresh.headers.getSetCookie()[0].split(';')[0])).status, 400);
 });
 
@@ -112,7 +117,7 @@ test('rejects cross-site or malformed requests and fails closed on sender failur
   assert.deepEqual(log.mock.calls.map(call => call.arguments), [
     ['email_auth_start', { stage: 'resend', attempt: 1, status: 403 }],
   ]);
-  const code = messages[0].text.match(/lautet (\d{6})/)[1];
+  const code = messages[0].text.match(/DVN-(\d{6})/)[1];
   assert.equal((await request('verify', { code })).status, 400);
 });
 
@@ -126,7 +131,7 @@ test('provider acceptance needs no further D1 writes to release a usable browser
   assert.equal(sent.status, 202);
   const challenge = sent.headers.getSetCookie()[0].split(';')[0];
   env.DVN_AUTH_DB.prepare.mock.restore();
-  const code = messages[0].text.match(/lautet (\d{6})/)[1];
+  const code = messages[0].text.match(/DVN-(\d{6})/)[1];
   assert.equal((await request('verify', { code }, challenge)).status, 200);
 });
 
@@ -168,4 +173,93 @@ test('limits mail delivery across different addresses on the same IP', async t =
   }
   assert.equal((await request('start', { email: 'other@example.test' })).status, 429);
   assert.equal(messages.length, 20);
+});
+
+test('verification reports a database outage separately and permits a retry after recovery', async t => {
+  const { request, messages, db, env } = fixture(t);
+  const sent = await request('start', { email: 'Member@example.test' });
+  const pending = sent.headers.getSetCookie()[0].split(';')[0];
+  const code = messages[0].text.match(/DVN-(\d{6})/)[1];
+  const log = t.mock.method(console, 'warn', () => {});
+  const blocked = t.mock.method(env.DVN_AUTH_DB, 'batch', () => {
+    throw Error('D1_ERROR: database unavailable', { cause: Error('daily write quota exceeded: sensitive diagnostics') });
+  });
+  const unavailable = await request('verify', { code }, pending);
+  assert.equal(unavailable.status, 503);
+  assert.deepEqual(await unavailable.json(), { error: 'unavailable' });
+  assert.equal(unavailable.headers.get('Set-Cookie'), null);
+  assert.equal(db.prepare('SELECT tries FROM email_login_attempts').get().tries, 0);
+  assert.deepEqual(log.mock.calls.map(call => call.arguments), [
+    ['email_auth_verify', { stage: 'consume', category: 'quota' }],
+  ]);
+  blocked.mock.restore();
+  const verified = await request('verify', { code }, pending);
+  assert.equal(verified.status, 200);
+  const sessionCookie = verified.headers.getSetCookie().find(header => header.startsWith('__Host-dvn-session=')).split(';')[0];
+  const { identity } = await import('../functions/api/auth/_profile.js');
+  const user = await identity(new Request(site, { headers: { Cookie: sessionCookie } }), env);
+  assert.equal(user.email, 'Member@example.test');
+  assert.equal(user.provider, 'email');
+  assert.equal((await request('verify', { code }, pending)).status, 400);
+});
+
+test('verification with ambiguous D1 metadata never issues a session', async t => {
+  const { request, messages, env } = fixture(t);
+  const sent = await request('start', { email: 'member@example.test' });
+  const pending = sent.headers.getSetCookie()[0].split(';')[0];
+  const code = messages[0].text.match(/DVN-(\d{6})/)[1];
+  const log = t.mock.method(console, 'warn', () => {});
+  t.mock.method(env.DVN_AUTH_DB, 'batch', () => [{ success: true, meta: {} }, { success: true, meta: { changes: 0 } }]);
+  const result = await request('verify', { code }, pending);
+  assert.equal(result.status, 503);
+  assert.equal(result.headers.get('Set-Cookie'), null);
+  assert.deepEqual(log.mock.calls[0].arguments, ['email_auth_verify', { stage: 'consume', category: 'unconfirmed_write' }]);
+});
+
+test('a matching fifth attempt issues exactly one session', async t => {
+  const { request, db, messages } = fixture(t);
+  const sent = await request('start', { email: 'member@example.test' });
+  const pending = sent.headers.getSetCookie()[0].split(';')[0];
+  const code = messages[0].text.match(/DVN-(\d{6})/)[1];
+  const wrong = String((Number(code) + 1) % 1_000_000).padStart(6, '0');
+  for (let i = 0; i < 4; i++) assert.equal((await request('verify', { code: wrong }, pending)).status, 400);
+  const requests = await Promise.all([request('verify', { code }, pending), request('verify', { code }, pending)]);
+  assert.deepEqual(requests.map(result => result.status).sort(), [200, 400]);
+  const row = db.prepare('SELECT tries, consumed FROM email_login_attempts').get();
+  assert.equal(row.tries, 5);
+  assert.equal(row.consumed, 1);
+});
+
+test('linking requires the original signed Google session and a correct code for its own address', async t => {
+  const { request, db, messages, env } = fixture(t);
+  for (const migration of ['0002_profiles.sql', '0004_account_links.sql']) {
+    db.exec(readFileSync(path.join(__dirname, '../migrations', migration), 'utf8'));
+  }
+  const { seal } = await import('../functions/api/auth/_lib.js');
+  const email = 'Member@gmail.com';
+  const claims = { sub: 'google-sub-test', email: email.toLowerCase(), name: 'Member', picture: '', exp: Math.floor(Date.now() / 1000) + 600 };
+  const google = '__Host-dvn-session=' + await seal(claims, env.AUTH_COOKIE_SECRET);
+  const renewed = '__Host-dvn-session=' + await seal({ ...claims, exp: claims.exp + 1 }, env.AUTH_COOKIE_SECRET);
+  assert.equal((await request('start', { email, purpose: 'link' })).status, 401);
+  assert.equal((await request('start', { email: 'other@example.test', purpose: 'link' }, google)).status, 409);
+  assert.equal(messages.length, 0);
+  const sent = await request('start', { email: 'Member@GMAIL.COM', purpose: 'link' }, google);
+  assert.equal(sent.status, 202);
+  assert.deepEqual(messages[0].to, [email]);
+  const pending = sent.headers.getSetCookie()[0].split(';')[0];
+  const code = messages[0].text.match(/DVN-(\d{6})/)[1];
+  assert.equal((await request('verify', { code }, pending)).status, 409);
+  assert.equal((await request('verify', { code }, pending + '; ' + renewed)).status, 409);
+  assert.equal(db.prepare('SELECT tries FROM email_login_attempts').get().tries, 0);
+  const wrong = String((Number(code) + 1) % 1_000_000).padStart(6, '0');
+  assert.equal((await request('verify', { code: wrong }, pending + '; ' + google)).status, 400);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM account_links').get().n, 0);
+  const linked = await request('verify', { code }, pending + '; ' + google);
+  assert.equal(linked.status, 200);
+  assert.deepEqual(await linked.json(), { linked: true });
+  assert.equal(linked.headers.getSetCookie().some(c => c.startsWith('__Host-dvn-session=')), false);
+  const { identityFromClaims } = await import('../functions/api/auth/_profile.js');
+  const chosen = await identityFromClaims({ sub: 'email:' + email, email });
+  assert.equal(db.prepare('SELECT email_id FROM account_links').get().email_id, chosen.id);
+  assert.equal((await request('verify', { code }, pending + '; ' + google)).status, 400);
 });

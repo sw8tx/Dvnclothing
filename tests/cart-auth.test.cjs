@@ -36,7 +36,7 @@ function mount() {
   form.elements = { size: { value: 'M' }, tone: { value: 'black' } };
   const storage = new Map();
   const localStorage = {
-    getItem: (key) => storage.get(key), setItem: (key, value) => storage.set(key, value),
+    getItem: (key) => storage.get(key), setItem: (key, value) => storage.set(key, value), removeItem: (key) => storage.delete(key),
   };
   vm.runInNewContext(shop, { document, window, localStorage });
   const bag = document.querySelector('#tee-bag');
@@ -92,4 +92,26 @@ test('an in-flight verification cannot add a previous user’s item to a differe
   await adding;
   assert.equal(view.count.textContent, '0');
   assert.equal(view.storage.size, 0);
+});
+
+
+test('linking preserves both saved bags once and ignores unrelated account data', () => {
+  const view = mount();
+  const alias = 'b'.repeat(64);
+  const unrelated = 'c'.repeat(64);
+  const key = (id) => 'dvn-studio-bag-v2:' + id;
+  const lines = (qty) => JSON.stringify([{ tone: 'slate', size: 'S', qty }]);
+  view.storage.set(key('canonical'), lines(2));
+  view.storage.set(key(alias), lines(4));
+  view.storage.set(key(unrelated), lines(7));
+  const link = () => view.document.fire('dvn:authchange', { detail: { user: { id: 'canonical', cartAliases: [alias] } } });
+  link();
+  assert.equal(view.count.textContent, '6');
+  assert.equal(view.storage.has(key(alias)), false);
+  assert.equal(view.storage.get(key(unrelated)), lines(7));
+  // Simulate a crash between persisting the merged lines and removing the alias key.
+  view.storage.set(key(alias), lines(4));
+  view.account(null);
+  link();
+  assert.equal(view.count.textContent, '6');
 });

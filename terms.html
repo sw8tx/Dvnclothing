@@ -133,18 +133,43 @@
         </form>
         <p class="account-method-note"><a href="/privacy.html" data-i18n="privacy.title">Datenschutzerklärung</a></p>
       </div>
+      <form data-account-link-form hidden>
+        <label for="account-link-email" data-account-copy="emailLabel">E-Mail-Adresse</label>
+        <input id="account-link-email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254" required aria-describedby="account-summary">
+        <button type="submit" class="account-primary" data-account-link-submit data-account-copy="linkSend">Bestätigungscode senden</button>
+        <button type="button" class="account-text-button" data-account-link-cancel data-account-copy="backAccount">Zurück zum Konto</button>
+      </form>
       <form data-account-code-form hidden>
+        <button type="button" class="account-text-button account-change-mail" data-account-back data-account-copy="changeEmail">E-Mail-Adresse ändern</button>
         <label for="account-code" data-account-copy="codeLabel">Anmeldecode</label>
-        <input id="account-code" name="code" type="text" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required placeholder="000000">
+        <div class="account-code-box"><span aria-hidden="true">DVN-</span><input id="account-code" name="code" type="text" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" spellcheck="false" aria-describedby="account-code-hint" required placeholder="000000"></div>
+        <p id="account-code-hint" class="account-code-hint" data-account-copy="codeHint">Die sechs Ziffern eingeben oder den ganzen Code einfügen.</p>
+        <p class="account-code-timer" data-account-clock role="timer" aria-live="off"></p>
         <button type="submit" class="account-primary" data-account-verify data-account-copy="verify">Code bestätigen</button>
-        <div class="account-text-actions"><button type="button" data-account-resend>Code erneut senden</button><button type="button" data-account-back data-account-copy="changeEmail">E-Mail ändern</button></div>
+        <button type="button" class="account-text-button account-resend" data-account-resend>Code erneut senden</button>
       </form>
       <div data-account-member hidden>
-        <div class="account-identity"><span class="account-avatar" data-dialog-avatar aria-hidden="true"></span><div><strong data-account-name></strong><span data-account-email></span></div></div>
+        <section class="account-bonus" data-account-bonus aria-labelledby="account-bonus-title" hidden>
+          <p class="account-bonus-congrats" data-account-bonus-congrats data-account-copy="congrats" hidden>Glückwunsch und willkommen bei DVN!</p>
+          <h3 id="account-bonus-title" data-account-copy="bonusTitle">15 % auf deine erste Bestellung</h3>
+          <p data-account-bonus-description></p>
+          <div class="account-bonus-code" data-account-bonus-row hidden><code data-account-bonus-code></code>
+            <button type="button" class="account-copy-button" data-account-bonus-copy data-account-copy="copyCode">Code kopieren</button>
+          </div>
+          <button type="button" class="account-text-button" data-account-bonus-email hidden>Code per E-Mail erhalten</button>
+          <p class="account-bonus-status" data-account-bonus-email-status role="status" hidden></p>
+          <button type="button" class="account-text-button" data-account-bonus-claim hidden>Erneut prüfen</button>
+          <span class="visually-hidden" data-account-bonus-live role="status"></span>
+        </section>
+        <div class="account-identity"><span class="account-avatar" data-dialog-avatar aria-hidden="true"></span><div><strong data-account-name></strong><span data-account-email></span><span class="account-provider" data-account-provider></span></div></div>
+        <button type="button" class="account-text-button account-link-method" data-account-link hidden>Anmeldemethode verbinden</button>
         <button type="button" class="account-secondary" data-account-edit data-account-copy="edit">Profil bearbeiten</button>
+        <p class="account-profile-status" data-account-profile-status data-account-copy="profileOffline" hidden>Dein gespeichertes Profil ist gerade nicht verfügbar.</p>
+        <button type="button" class="account-text-button" data-account-profile-retry data-account-copy="profileRetry" hidden>Profil erneut laden</button>
         <button type="button" class="account-text-button" data-account-logout data-account-copy="logout">Abmelden</button>
       </div>
       <form data-account-profile-form hidden>
+        <p class="account-edit-connection"><span data-edit-provider></span><strong data-edit-email></strong></p>
         <div class="account-photo-row"><span class="account-avatar" data-edit-avatar aria-hidden="true"></span><div>
           <label class="account-upload" for="account-photo"><span data-account-copy="changePhoto">Foto auswählen</span>
             <input id="account-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
@@ -155,6 +180,7 @@
         <button type="submit" class="account-primary" data-account-save data-account-copy="save">Änderungen speichern</button>
         <button type="button" class="account-text-button" data-account-cancel data-account-copy="cancel">Abbrechen</button>
       </form>
+      <button type="button" class="account-text-button" data-account-restart data-account-copy="restart" hidden>Zur Anmeldung</button>
       <button class="account-secondary" type="button" data-account-retry data-account-copy="retry" hidden>Erneut prüfen</button>
     </div>
   </dialog>

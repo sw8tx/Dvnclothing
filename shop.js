@@ -35,6 +35,7 @@
   const bagLines = document.querySelector('#tee-bag-lines');
   let canSave = true;
   let selection = [];
+  let migratedOwners = [];
   let owner = null;
   let identityVersion = 0;
   let verifying = false;
@@ -45,12 +46,19 @@
 
   function switchAccount(user) {
     const id = typeof user?.id === 'string' && user.id ? user.id : null;
-    if (id === owner) return;
-    owner = id;
-    identityVersion++;
-    canSave = true;
-    if (bag.open) bag.close();
-    selection = owner ? readSelection() : [];
+    if (id !== owner) {
+      owner = id;
+      identityVersion++;
+      canSave = true;
+      if (bag.open) bag.close();
+      restore();
+    }
+    // These aliases are supplied only by the verified linked-account session.
+    if (owner && Array.isArray(user?.cartAliases)) {
+      for (const alias of user.cartAliases) {
+        if (typeof alias === 'string' && /^[a-f0-9]{64}$/.test(alias) && alias !== owner) mergeAlias(alias);
+      }
+    }
     updateBag();
   }
 
@@ -74,27 +82,62 @@
     return copy[document.documentElement.lang] || copy.de;
   }
 
-  function readSelection() {
+  function readStored(key) {
+    const empty = { lines: [], migratedOwners: [] };
+    if (!key) return empty;
     try {
-      const stored = JSON.parse(localStorage.getItem(storageKey()) || '[]');
-      if (!Array.isArray(stored)) return [];
+      const stored = JSON.parse(localStorage.getItem(key) || '[]');
+      const lines = Array.isArray(stored) ? stored : stored?.lines;
+      if (!Array.isArray(lines)) return empty;
       const unique = new Map();
-      for (const line of stored) {
+      for (const line of lines) {
         if (!line || !Object.hasOwn(tones, line.tone) || !sizes.includes(line.size)) continue;
         if (!Number.isInteger(line.qty) || line.qty < 1) continue;
         const key = line.tone + '-' + line.size;
-        unique.set(key, { tone: line.tone, size: line.size, qty: Math.min(99, line.qty) });
+        unique.set(key, { tone: line.tone, size: line.size, qty: Math.min(9999, line.qty) });
       }
-      return Array.from(unique.values());
+      return {
+        lines: Array.from(unique.values()),
+        migratedOwners: Array.isArray(stored.migratedOwners) ? stored.migratedOwners : [],
+      };
     } catch {
-      return [];
+      return empty;
+    }
+  }
+
+  function restore() {
+    const stored = readStored(storageKey());
+    selection = stored.lines;
+    migratedOwners = stored.migratedOwners;
+  }
+
+  function mergeAlias(alias) {
+    if (migratedOwners.includes(alias)) return;
+    const key = bagPrefix + encodeURIComponent(alias);
+    const previous = readStored(key).lines;
+    if (!previous.length) return;
+    const combined = selection.map(line => ({ ...line }));
+    for (const line of previous) {
+      const existing = combined.find(item => item.tone === line.tone && item.size === line.size);
+      if (existing) existing.qty += line.qty;
+      else combined.push(line);
+    }
+    const migrated = [...migratedOwners, alias];
+    try {
+      // The marker and merged lines commit together, including after a retry or tab reload.
+      localStorage.setItem(storageKey(), JSON.stringify({ lines: combined, migratedOwners: migrated }));
+      migratedOwners = migrated;
+      selection = combined;
+      localStorage.removeItem(key);
+    } catch {
+      canSave = false;
     }
   }
 
   function save() {
     if (!owner) return;
     try {
-      localStorage.setItem(storageKey(), JSON.stringify(selection));
+      localStorage.setItem(storageKey(), JSON.stringify({ lines: selection, migratedOwners }));
     } catch {
       canSave = false;
     }
@@ -202,7 +245,7 @@
     if (!Object.hasOwn(tones, tone) || !sizes.includes(size)) return;
     if (!await allowBagAction() || !detail.open) return;
     const line = selection.find((item) => item.tone === tone && item.size === size);
-    if (line) line.qty = Math.min(99, line.qty + 1);
+    if (line) line.qty += line.qty < 99 ? 1 : 0;
     else selection.push({ tone, size, qty: 1 });
     save();
     detail.close();
@@ -231,7 +274,8 @@
     if (!item) return;
     const action = button.dataset.bagAction;
     if (action === 'remove') selection = selection.filter((line) => line !== item);
-    else item.qty = Math.max(1, Math.min(99, item.qty + (action === 'more' ? 1 : -1)));
+    else if (action === 'more' && item.qty < 99) item.qty++;
+    else if (action === 'less' && item.qty > 1) item.qty--;
     save();
     const newRow = [...bagLines.children].find((el) => el.dataset.tone === item.tone && el.dataset.size === item.size);
     const next = newRow?.querySelector('[data-bag-action="' + action + '"]:not(:disabled)') ||
@@ -240,7 +284,7 @@
   });
   window.addEventListener('storage', (event) => {
     if (owner && (event.key === storageKey() || event.key === null)) {
-      selection = readSelection();
+      restore();
       updateBag();
     }
   });

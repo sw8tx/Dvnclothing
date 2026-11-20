@@ -13,6 +13,6 @@ export async function onRequestGet({ request, env }) {
   try {
     return noStore(Response.json({ ...config, user: await readProfile(user, env) }));
   } catch {
-    return noStore(Response.json({ ...config, profileConfigured: false, user }));
+    return noStore(Response.json({ ...config, profileConfigured: false, user: { ...user, linkedProviders: [user.provider], cartAliases: [] } }));
   }
 }

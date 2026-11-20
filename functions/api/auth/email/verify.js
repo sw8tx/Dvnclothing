@@ -1,13 +1,17 @@
 import { clearCookie, cookie, seal, setCookie, unseal } from '../_lib.js';
-import { body, challengeCookie, json, lifetime, mac, validateRequest } from './_shared.js';
+import { linkAccounts } from '../_links.js';
+import { identityFromClaims, rawIdentity } from '../_profile.js';
+import { body, challengeCookie, json, lifetime, mac, sameLinkMailbox, validateRequest } from './_shared.js';
 
-// At most five comparisons; a matching request sets consumed before issuing a session.
-const consume = `
-  UPDATE email_login_attempts
-  SET tries = tries + 1, consumed = CASE WHEN code_mac = ?1 THEN 1 ELSE 0 END
-  WHERE challenge_key = ?2 AND issued_at > ?3 AND active = 1 AND consumed = 0 AND tries < 5
-  RETURNING consumed
-`;
+const eligible = 'challenge_key = ? AND issued_at > ? AND active = 1 AND consumed = 0 AND tries < 5';
+const match = `UPDATE email_login_attempts SET tries = tries + 1, consumed = 1 WHERE ${eligible} AND code_mac = ?`;
+const mismatch = `UPDATE email_login_attempts SET tries = tries + 1 WHERE ${eligible} AND code_mac <> ?`;
+
+function databaseCategory(error) {
+  const messages = [error?.message, error?.cause?.message].join(' ');
+  if (/quota|daily.*limit|limit.*daily|free tier/i.test(messages)) return 'quota';
+  return 'database';
+}
 
 export async function onRequestPost({ request, env }) {
   const invalid = validateRequest(request, env);
@@ -18,18 +22,55 @@ export async function onRequestPost({ request, env }) {
   const pending = await unseal(cookie(request, challengeCookie), secret + ':email-challenge-v1');
   if (!pending?.challenge || !pending.email) return json({ error: 'invalid_code' }, 400);
   const now = Math.floor(Date.now() / 1000);
+  let stage = 'prepare';
   try {
     const [challengeKey, codeMac] = await Promise.all([
-      mac(secret, 'challenge', pending.challenge), mac(secret, 'code', pending.challenge + ':' + payload.code),
+      mac(secret, 'challenge', pending.challenge),
+      mac(secret, 'code', pending.challenge + ':' + payload.code),
     ]);
-    const used = await env.DVN_AUTH_DB.prepare(consume).bind(codeMac, challengeKey, now - lifetime).first();
-    if (used?.consumed !== 1) return json({ error: 'invalid_code' }, 400);
     const user = { name: pending.email, email: pending.email, picture: '' };
-    const age = 7 * 86400;
-    const session = await seal({ ...user, sub: 'email:' + pending.email, exp: now + age }, secret);
-    const result = json({ user });
-    clearCookie(result, challengeCookie);
-    setCookie(result, '__Host-dvn-session', session, age);
-    return result;
-  } catch { return json({ error: 'unavailable' }, 503); }
+    const claims = { ...user, sub: 'email:' + pending.email };
+    let google, emailAccount, accepted;
+    if (pending.linking) {
+      google = await rawIdentity(request, env);
+      const sessionKey = await mac(secret, 'link-session', cookie(request, '__Host-dvn-session'));
+      if (google?.provider !== 'google' || google.id !== pending.linking.googleId ||
+          !sameLinkMailbox(google.email, pending.email) || sessionKey !== pending.linking.sessionKey) {
+        return json({ error: 'link_conflict' }, 409);
+      }
+      emailAccount = await identityFromClaims(claims);
+      accepted = json({ linked: true });
+    } else {
+      const age = 7 * 86400;
+      const session = await seal({ ...claims, exp: now + age }, secret);
+      accepted = json({ user });
+      setCookie(accepted, '__Host-dvn-session', session, age);
+    }
+    clearCookie(accepted, challengeCookie);
+
+    // Both writes run in one D1 transaction; only one can match. No session
+    // leaves this function until D1 confirms this request consumed the code.
+    stage = 'consume';
+    const db = env.DVN_AUTH_DB;
+    const values = [challengeKey, now - lifetime, codeMac];
+    const results = await db.batch([
+      db.prepare(match).bind(...values),
+      db.prepare(mismatch).bind(...values),
+    ]);
+    const counts = results.map(result => result.success === false ? null : result.meta?.changes);
+    if (counts.length !== 2 || !counts.every(count => count === 0 || count === 1) || counts[0] + counts[1] > 1) {
+      console.warn('email_auth_verify', { stage, category: 'unconfirmed_write' });
+      return json({ error: 'unavailable' }, 503);
+    }
+    if (counts[0] === 0) return json({ error: 'invalid_code' }, 400);
+    if (google) {
+      stage = 'link';
+      if (!await linkAccounts(env, emailAccount, google)) return json({ error: 'link_conflict' }, 409);
+    }
+    return accepted;
+  } catch (error) {
+    const category = stage === 'prepare' ? 'internal' : databaseCategory(error);
+    console.warn('email_auth_verify', { stage, category });
+    return json({ error: 'unavailable' }, 503);
+  }
 }

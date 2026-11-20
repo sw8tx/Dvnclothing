@@ -7,12 +7,16 @@ async function app(t) {
   const sql = new DatabaseSync(':memory:');
   t.after(() => sql.close());
   sql.exec(readFileSync(require.resolve('../migrations/0002_profiles.sql'), 'utf8'));
+  sql.exec(readFileSync(require.resolve('../migrations/0004_account_links.sql'), 'utf8'));
   const env = {
     AUTH_COOKIE_SECRET: 'profile-tests-with-at-least-32-characters',
     RESEND_API_KEY: 'local-mail-provider',
     DVN_AUTH_DB: { prepare(query) {
       const statement = sql.prepare(query);
-      return { bind: (...args) => ({ first: async () => statement.get(...args) || null }) };
+      return { bind: (...args) => ({
+        first: async () => statement.get(...args) || null,
+        run: async () => ({ meta: { changes: statement.run(...args).changes } }),
+      }) };
     } },
   };
   const { seal } = await import('../functions/api/auth/_lib.js');
@@ -32,7 +36,7 @@ async function app(t) {
       }),
     };
   }
-  return { forIdentity };
+  return { forIdentity, env };
 }
 
 const address = 'Caps@example.test';
@@ -76,4 +80,71 @@ test('profile rejects foreign origins, invalid avatars and untrusted identity da
   assert.equal((await pending.session()).user, null);
   assert.equal((await pending.save({ name: 'Name' })).status, 401);
   assert.equal((await session.save({ avatar: 'a'.repeat(180001) })).status, 413);
+});
+
+test('explicit links keep a stable account, previous profile fields and both local cart keys', async t => {
+  const api = await app(t);
+  const { identityFromClaims } = await import('../functions/api/auth/_profile.js');
+  const { linkAccounts } = await import('../functions/api/auth/_links.js');
+  const g = await identityFromClaims(google);
+  const e = await identityFromClaims(email);
+  const fromGoogle = await api.forIdentity(google);
+  const fromEmail = await api.forIdentity(email);
+  await fromGoogle.save({ avatar: image });
+  await fromEmail.save({ name: 'My chosen name' });
+  assert.equal(await linkAccounts(api.env, e, g), true);
+  assert.equal(await linkAccounts(api.env, e, g), true);
+  for (const browser of [fromGoogle, fromEmail]) {
+    const { user } = await browser.session();
+    assert.equal(user.id, e.id);
+    assert.equal(user.name, 'My chosen name');
+    assert.equal(user.picture, image);
+    assert.deepEqual(user.cartAliases, [g.id]);
+    assert.deepEqual(user.linkedProviders, ['email', 'google']);
+  }
+  await fromGoogle.save({ avatar: '', name: 'Shared' });
+  assert.equal((await fromEmail.session()).user.name, 'Shared');
+  assert.equal((await fromEmail.session()).user.picture, '');
+  const otherGoogle = await identityFromClaims({ ...google, sub: 'different-google-id' });
+  assert.equal(await linkAccounts(api.env, e, otherGoogle), false);
+  const newAddress = 'other@example.test';
+  const replacementEmail = await identityFromClaims({ sub: 'email:' + newAddress, email: newAddress });
+  const renamedGoogle = await identityFromClaims({ ...google, email: newAddress });
+  assert.equal(await linkAccounts(api.env, replacementEmail, renamedGoogle), false);
+  const separate = await api.forIdentity({ ...google, sub: 'different-google-id' });
+  assert.notEqual((await separate.session()).user.id, e.id);
+});
+
+test('different customized profiles and mismatched addresses stay independent', async t => {
+  const api = await app(t);
+  const { identityFromClaims } = await import('../functions/api/auth/_profile.js');
+  const { linkAccounts } = await import('../functions/api/auth/_links.js');
+  const g = await identityFromClaims(google);
+  const e = await identityFromClaims(email);
+  const fromGoogle = await api.forIdentity(google);
+  const fromEmail = await api.forIdentity(email);
+  await fromGoogle.save({ name: 'Google Name' });
+  await fromEmail.save({ name: 'Mail Name' });
+  assert.equal(await linkAccounts(api.env, e, g), false);
+  assert.equal(await linkAccounts(api.env, e, { ...g, email: address.toLowerCase() }), false);
+  for (const [session, id, name] of [[fromGoogle, g.id, 'Google Name'], [fromEmail, e.id, 'Mail Name']]) {
+    const { user } = await session.session();
+    assert.equal(user.id, id);
+    assert.equal(user.name, name);
+    assert.deepEqual(user.linkedProviders, [user.provider]);
+  }
+});
+
+test('mailbox case equivalence is limited to the same Gmail domain and keeps existing email subject IDs', async () => {
+  const { sameLinkMailbox } = await import('../functions/api/auth/email/_shared.js');
+  const { identityFromClaims } = await import('../functions/api/auth/_profile.js');
+  assert.equal(sameLinkMailbox('Name@Gmail.com', 'name@gmail.com'), true);
+  assert.equal(sameLinkMailbox('Name@Googlemail.com', 'name@googlemail.com'), true);
+  assert.equal(sameLinkMailbox('Name@googlemail.com', 'name@gmail.com'), false);
+  assert.equal(sameLinkMailbox('Na.me@gmail.com', 'name@gmail.com'), false);
+  assert.equal(sameLinkMailbox('name+tag@gmail.com', 'name@gmail.com'), false);
+  assert.equal(sameLinkMailbox('Name@Example.com', 'name@example.com'), false);
+  assert.equal(sameLinkMailbox('Name@Example.com', 'Name@example.com'), true);
+  const account = email => identityFromClaims({ sub: 'email:' + email, email });
+  assert.notEqual((await account('Name@gmail.com')).id, (await account('name@gmail.com')).id);
 });

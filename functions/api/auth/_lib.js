@@ -66,7 +66,7 @@ export async function verifyGoogleToken(idToken, clientId, nonce) {
   const header = JSON.parse(new TextDecoder().decode(decode(chunks[0])));
   const claims = JSON.parse(new TextDecoder().decode(decode(chunks[1])));
   const now = Math.floor(Date.now() / 1000);
-  if (header.alg !== 'RS256' || !header.kid || claims.aud !== clientId || !['https://accounts.google.com', 'accounts.google.com'].includes(claims.iss) || claims.nonce !== nonce || typeof claims.sub !== 'string' || !claims.sub || typeof claims.email !== 'string' || !claims.email || claims.email_verified !== true || !Number.isInteger(claims.exp) || claims.exp <= now || !Number.isInteger(claims.iat) || claims.iat > now + 60) throw Error('Invalid Google claims');
+  if (header.alg !== 'RS256' || !header.kid || claims.aud !== clientId || !['https://accounts.google.com', 'accounts.google.com'].includes(claims.iss) || claims.nonce !== nonce || typeof claims.sub !== 'string' || !claims.sub || claims.sub.startsWith('email:') || typeof claims.email !== 'string' || !claims.email || claims.email_verified !== true || !Number.isInteger(claims.exp) || claims.exp <= now || !Number.isInteger(claims.iat) || claims.iat > now + 60) throw Error('Invalid Google claims');
   const keysResponse = await fetch('https://www.googleapis.com/oauth2/v3/certs');
   if (!keysResponse.ok) throw Error('Google verification unavailable');
   const { keys } = await keysResponse.json();

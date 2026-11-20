@@ -1,6 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { webcrypto } = require('node:crypto');
+const { DatabaseSync } = require('node:sqlite');
+const { readFileSync } = require('node:fs');
 
 globalThis.crypto ??= webcrypto;
 const env = { GOOGLE_CLIENT_ID: 'test-client', GOOGLE_CLIENT_SECRET: 'test-secret', AUTH_COOKIE_SECRET: 'a-long-test-secret-with-more-than-32-characters' };
@@ -47,7 +49,7 @@ test('sessions reject tampering and logout requires the site origin', async () =
 });
 
 test('a verified Google callback exchanges the code and creates a usable session', async (t) => {
-  const { onRequestGet: start } = await import('../functions/api/auth/start.js');
+  const { onRequestGet: start, onRequestPost: startLink } = await import('../functions/api/auth/start.js');
   const { onRequestGet: callback } = await import('../functions/api/auth/callback.js');
   const { onRequestGet: session } = await import('../functions/api/auth/session.js');
   const site = 'https://dvnclothing.com';
@@ -60,14 +62,17 @@ test('a verified Google callback exchanges the code and creates a usable session
   }, true, ['sign', 'verify']);
   const publicKey = await crypto.subtle.exportKey('jwk', signingKeys.publicKey);
   const header = { alg: 'RS256', kid: 'test-key' };
-  const profile = { name: 'Alex', email: 'alex@example.test', picture: '' };
+  const profile = { name: 'Alex', email: 'alex@gmail.com', picture: '' };
   const claims = {
     ...profile, iss: 'https://accounts.google.com', sub: 'test-subject', aud: env.GOOGLE_CLIENT_ID,
     nonce: authorization.get('nonce'), iat: now, exp: now + 300, email_verified: true,
   };
-  const payload = [header, claims].map(value => Buffer.from(JSON.stringify(value)).toString('base64url')).join('.');
-  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', signingKeys.privateKey, Buffer.from(payload));
-  const idToken = payload + '.' + Buffer.from(signature).toString('base64url');
+  async function signClaims(values) {
+    const payload = [header, values].map(value => Buffer.from(JSON.stringify(value)).toString('base64url')).join('.');
+    const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', signingKeys.privateKey, Buffer.from(payload));
+    return payload + '.' + Buffer.from(signature).toString('base64url');
+  }
+  let idToken = await signClaims(claims);
   const fetchMock = t.mock.method(globalThis, 'fetch', async (url, options) => {
     if (url === 'https://oauth2.googleapis.com/token') {
       assert.equal(options.method, 'POST');
@@ -103,8 +108,62 @@ test('a verified Google callback exchanges the code and creates a usable session
   assert.equal(result.configured, true);
   assert.equal(result.emailConfigured, false);
   assert.equal(result.profileConfigured, false);
-  const { id, provider, ...user } = result.user;
+  const { id, provider, linkedProviders, cartAliases, ...user } = result.user;
   assert.match(id, /^[0-9a-f]{64}$/);
   assert.equal(provider, 'google');
+  assert.deepEqual(linkedProviders, ['google']);
+  assert.deepEqual(cartAliases, []);
   assert.deepEqual(user, profile);
+
+  // The user is signed in by email, requests linking, then completes Google OAuth.
+  const sql = new DatabaseSync(':memory:');
+  t.after(() => sql.close());
+  for (const migration of ['0002_profiles.sql', '0004_account_links.sql']) {
+    sql.exec(readFileSync(require.resolve('../migrations/' + migration), 'utf8'));
+  }
+  const connectedEnv = { ...env, DVN_AUTH_DB: { prepare(query) {
+    const stmt = sql.prepare(query);
+    return { bind: (...args) => ({
+      first: async () => stmt.get(...args) || null,
+      run: async () => ({ meta: { changes: stmt.run(...args).changes } }),
+    }) };
+  } } };
+  const { seal } = await import('../functions/api/auth/_lib.js');
+  const emailClaims = { sub: 'email:Alex@gmail.com', email: 'Alex@gmail.com', exp: now + 120 };
+  const emailCookie = '__Host-dvn-session=' + await seal(emailClaims, env.AUTH_COOKIE_SECRET);
+  const initiate = (origin, cookie) => startLink({
+    request: new Request(site + '/api/auth/start', { method: 'POST',
+      headers: { Origin: origin, Cookie: cookie, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'linkGoogle' }),
+    }), env: connectedEnv,
+  });
+  assert.equal((await initiate('https://other.test', emailCookie)).status, 403);
+  assert.equal((await initiate(site, '')).status, 401);
+  const linkStart = await initiate(site, emailCookie);
+  assert.equal(linkStart.status, 200);
+  const linkAuth = new URL((await linkStart.json()).url);
+  assert.equal(linkAuth.searchParams.get('prompt'), 'select_account');
+  const pendingCookie = linkStart.headers.get('Set-Cookie').split(';')[0];
+  const linkUrl = new URL(callbackUrl);
+  linkUrl.searchParams.set('state', linkAuth.searchParams.get('state'));
+  idToken = await signClaims({ ...claims, nonce: linkAuth.searchParams.get('nonce') });
+  const completeLink = (browserSession) => callback({
+    request: new Request(linkUrl, { headers: { Cookie: pendingCookie + '; ' + browserSession } }),
+    env: connectedEnv,
+  });
+  const replaced = '__Host-dvn-session=' + await seal({ ...emailClaims, exp: now + 121 }, env.AUTH_COOKIE_SECRET);
+  assert.equal((await completeLink(replaced)).headers.get('Location'), site + '/?login=link_failed');
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM account_links').get().n, 0);
+  const linkedResponse = await completeLink(emailCookie);
+  assert.equal(linkedResponse.headers.get('Location'), site + '/?login=linked');
+  assert.doesNotMatch(linkedResponse.headers.get('Set-Cookie'), /__Host-dvn-session=/);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM account_links').get().n, 1);
+  async function linkedSession(cookie) {
+    return (await (await session({ request: new Request(site + '/api/auth/session', { headers: { Cookie: cookie } }), env: connectedEnv })).json()).user;
+  }
+  const fromEmail = await linkedSession(emailCookie);
+  const fromGoogle = await linkedSession(sessionCookie.split(';')[0]);
+  assert.equal(fromEmail.id, fromGoogle.id);
+  assert.deepEqual(fromGoogle.linkedProviders, ['email', 'google']);
+  assert.deepEqual(fromEmail.cartAliases, [id]);
 });
