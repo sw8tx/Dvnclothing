@@ -30,6 +30,17 @@ function failure(error, status, retrySeconds) {
   return result;
 }
 
+async function cooldown(db, emailKey, ipKey, now, minimumWait) {
+  let wait = minimumWait;
+  try {
+    const until = await db.prepare(nextAdmission).bind(emailKey, ipKey, now).first();
+    if (Number.isInteger(until?.seconds) && until.seconds > 0) wait = Math.max(wait || 0, until.seconds);
+  } catch {
+    console.warn('email_auth_start', { stage: 'retry_after', category: 'database' });
+  }
+  return failure('rate_limited', 429, wait);
+}
+
 function responseDelay(response) {
   const value = response.headers.get('Retry-After');
   if (!value) return null;
@@ -114,26 +125,26 @@ export async function onRequestPost({ request, env }) {
     setCookie(accepted, challengeCookie, pending, lifetime);
     const db = env.DVN_AUTH_DB;
     stage = 'reserve';
+    // Most rapid repeats can be declined with an indexed read, including
+    // while D1 cannot accept writes. The INSERT still guards concurrent sends.
+    let recent;
+    try {
+      recent = await db.prepare(
+        'SELECT issued_at FROM email_login_attempts WHERE email_key = ? AND issued_at > ? ORDER BY issued_at DESC LIMIT 1'
+      ).bind(emailKey, now - 60).first();
+    } catch {
+      // The atomic reservation below remains authoritative when this read fails.
+    }
+    if (recent) return await cooldown(db, emailKey, ipKey, now, recent.issued_at + 60 - now);
     const [prune, admission] = await db.batch([
       db.prepare('DELETE FROM email_login_attempts WHERE issued_at <= ?').bind(now - 3600),
       db.prepare(reserve).bind(challengeKey, codeMac, emailKey, ipKey, now),
     ]);
     if (!prune || prune.success === false || !admission || admission.success === false || ![0, 1].includes(admission.meta?.changes)) {
       console.warn('email_auth_start', { stage, category: 'unconfirmed_write' });
-      return failure('unavailable', 503);
+      return failure('reservation_unconfirmed', 503);
     }
-    if (admission.meta.changes === 0) {
-      // Admission is already decided. A missing timing hint must not turn a
-      // known cooldown into an apparent delivery outage.
-      let wait;
-      try {
-        const until = await db.prepare(nextAdmission).bind(emailKey, ipKey, now).first();
-        if (Number.isInteger(until?.seconds) && until.seconds > 0) wait = until.seconds;
-      } catch {
-        console.warn('email_auth_start', { stage: 'retry_after', category: 'database' });
-      }
-      return failure('rate_limited', 429, wait);
-    }
+    if (admission.meta.changes === 0) return await cooldown(db, emailKey, ipKey, now);
     stage = 'resend';
     const message = JSON.stringify({
       from: 'DVN CLOTHING <account@dvnclothing.com>',
@@ -149,6 +160,6 @@ export async function onRequestPost({ request, env }) {
       category = /quota|daily.*limit|limit.*daily|free tier/i.test(messages) ? 'quota' : 'database';
     }
     console.warn('email_auth_start', { stage, category });
-    return json({ error: 'unavailable' }, 503);
+    return failure(stage === 'reserve' ? (category === 'quota' ? 'store_quota' : 'store_unavailable') : 'unavailable', 503);
   }
 }

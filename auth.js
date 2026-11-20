@@ -24,11 +24,12 @@
       limit: 'Zu viele Versuche. Warte einen Moment und versuche es erneut.', sendError: 'Der Code konnte nicht versendet werden. Bitte versuche es erneut.',
       addressInvalid: 'Prüfe die Schreibweise deiner E-Mail-Adresse.',
       sendUnconfirmed: 'Wir konnten den Versand nicht bestätigen. Prüfe deine Verbindung und versuche es noch einmal.',
+      sendDbQuota: 'Die Anmeldung per E-Mail hat ihr technisches Limit erreicht. Bitte versuche es später noch einmal.',
       sendBusy: 'Der E-Mail-Versand ist gerade ausgelastet.',
       sendQuota: 'Das Versandlimit ist erreicht. Bitte versuche es später erneut.',
       sendOffline: 'Die Anmeldung per E-Mail ist vorübergehend nicht verfügbar. Bitte versuche es später erneut.',
       sendForbidden: 'Lade die Shopseite neu und fordere den Code noch einmal an.',
-      nextTry: 'Nächster Versuch ab {time} Uhr.',
+      nextTry: 'Erneut versuchen ab {time} Uhr.',
       verifyError: 'Der Code konnte nicht geprüft werden. Bitte versuche es erneut.', logoutError: 'Die Abmeldung ist fehlgeschlagen. Bitte versuche es erneut.',
       profileError: 'Dein Profil konnte nicht gespeichert werden. Bitte prüfe deine Angaben und versuche es erneut.',
       denied: 'Die Anmeldung wurde abgebrochen oder ist fehlgeschlagen.', expired: 'Bitte melde dich erneut an.',
@@ -70,6 +71,7 @@
       limit: 'Too many attempts. Wait a moment and try again.', sendError: 'We couldn’t send your code. Please try again.',
       addressInvalid: 'Check the spelling of your email address.',
       sendUnconfirmed: 'We couldn’t confirm whether your code was sent. Check your connection and try again.',
+      sendDbQuota: 'Email sign-in has reached its service limit. Please try again later.',
       sendBusy: 'Email delivery is busy right now.',
       sendQuota: 'The email sending limit has been reached. Please try again later.',
       sendOffline: 'Email sign-in is temporarily unavailable. Please try again later.',
@@ -438,6 +440,7 @@
         else if (err.status === 401) error = 'expired';
         else if (err.status === 403) error = 'sendForbidden';
         else if (err.reason === 'delivery_quota') error = 'sendQuota';
+        else if (err.reason === 'store_quota') error = 'sendDbQuota';
         else if (err.reason === 'delivery_busy') error = 'sendBusy';
         else if (err.reason === 'delivery_unconfirmed') error = 'sendUnconfirmed';
         else if (err.status === 503) error = 'sendOffline';

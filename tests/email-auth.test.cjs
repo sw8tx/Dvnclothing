@@ -240,7 +240,7 @@ test('admission distinguishes exhausted D1 quota and uncertain D1 writes from lo
   for (const category of ['quota', 'unconfirmed_write']) {
     const response = await request('start', { email: 'member@example.test' });
     assert.equal(response.status, 503);
-    assert.deepEqual(await response.json(), { error: 'unavailable' });
+    assert.deepEqual(await response.json(), { error: category === 'quota' ? 'store_quota' : 'reservation_unconfirmed' });
     assert.equal(response.headers.get('Set-Cookie'), null);
     assert.deepEqual(log.mock.calls.at(-1).arguments, ['email_auth_start', { stage: 'reserve', category }]);
   }
@@ -259,8 +259,18 @@ test('a known local cooldown survives an unavailable retry-time lookup', async t
   const denied = await request('start', { email: 'member@example.test' });
   assert.equal(denied.status, 429);
   assert.deepEqual(await denied.json(), { error: 'rate_limited' });
-  assert.equal(denied.headers.get('Retry-After'), null);
+  assert.ok(Number(denied.headers.get('Retry-After')) >= 59);
   assert.equal(denied.headers.get('Set-Cookie'), null);
+  assert.equal(messages.length, 1);
+});
+
+test('a rapid repeat stays rate limited when D1 writes are unavailable', async t => {
+  const { request, env, messages } = fixture(t);
+  assert.equal((await request('start', { email: 'member@example.test' })).status, 202);
+  t.mock.method(env.DVN_AUTH_DB, 'batch', () => { throw Error('write quota exceeded'); });
+  const denied = await request('start', { email: 'MEMBER@example.test' });
+  assert.equal(denied.status, 429);
+  assert.ok(Number(denied.headers.get('Retry-After')) >= 59);
   assert.equal(messages.length, 1);
 });
 
