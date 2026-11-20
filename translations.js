@@ -1,5 +1,8 @@
 globalThis.DVN_TRANSLATIONS = {
   de: {
+    'footer.privacy': 'Datenschutz',
+    'privacy.title': 'Datenschutzerklärung',
+    'privacy.page': 'Datenschutz – DVN CLOTHING',
     'masthead.shop': 'Kollektion',
     'masthead.release': 'Launch',
     'masthead.bag': 'Warenkorb',
@@ -69,6 +72,9 @@ globalThis.DVN_TRANSLATIONS = {
     'terms.rights': 'Diese Hinweise beschränken keine zwingenden gesetzlichen Rechte. Für einen späteren Shop sind eigene, auf das tatsächliche Angebot abgestimmte Vertrags- und Verbraucherinformationen erforderlich.',
   },
   en: {
+    'footer.privacy': 'Privacy',
+    'privacy.title': 'Privacy policy',
+    'privacy.page': 'Privacy – DVN CLOTHING',
     'masthead.shop': 'Collection',
     'masthead.release': 'Launch',
     'masthead.bag': 'Shopping bag',

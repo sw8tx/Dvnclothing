@@ -5,7 +5,7 @@ import path from 'node:path';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = path.join(root, 'dist');
-const pages = ['index.html', 'impressum.html', 'terms.html'];
+const pages = ['index.html', 'impressum.html', 'terms.html', 'privacy.html'];
 const html = (await Promise.all(pages.map((file) => readFile(path.join(root, file), 'utf8')))).join('\n');
 const css = await readFile(path.join(root, 'styles.css'), 'utf8');
 const references = [
