@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   const translations = globalThis.DVN_TRANSLATIONS;
+  if (!translations?.de || !translations.en) return;
   const supported = (value) => value === 'de' || value === 'en';
   const menu = document.querySelector('.language-menu');
   if (menu) menu.hidden = false;
@@ -23,7 +24,9 @@
     language = value;
     document.documentElement.lang = language;
     document.querySelectorAll('[data-i18n]').forEach((element) => {
-      element.textContent = t(element.dataset.i18n);
+      const key = element.dataset.i18n;
+      const copy = translations[language][key] ?? translations.de[key];
+      if (copy) element.textContent = copy;
     });
     document.querySelectorAll('[data-i18n-aria]').forEach((element) => {
       element.setAttribute('aria-label', t(element.dataset.i18nAria));
