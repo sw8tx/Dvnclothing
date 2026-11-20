@@ -1,50 +1,57 @@
 (() => {
   'use strict';
 
-  const start = Date.parse('2026-11-20T00:00:00+01:00');
-  const launch = Date.parse('2026-12-06T00:00:00+01:00');
-  const fields = ['days', 'hours', 'minutes', 'seconds'].map((id) => document.getElementById(id));
-  const timer = document.querySelector('.countdown');
-  const flight = document.getElementById('flight');
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const animations = new Map();
-  let initialRender = true;
+  const target = Date.parse('2026-12-06T00:00:00+01:00');
+  const units = [
+    { id: 'days', singular: 'Tag', plural: 'Tage' },
+    { id: 'hours', singular: 'Stunde', plural: 'Stunden' },
+    { id: 'minutes', singular: 'Minute', plural: 'Minuten' },
+    { id: 'seconds', singular: 'Sekunde', plural: 'Sekunden' },
+  ];
+  const fields = units.map(({ id }) => document.getElementById(id));
+  const timer = document.querySelector('.rv-countdown-clock');
+
+  function renderDigits(field, value) {
+    // Preserve unchanged spans so only changed digits replay the CSS flip.
+    if (!field.children.length) field.textContent = '';
+    for (let index = 0; index < value.length; index += 1) {
+      const digit = value[index];
+      const current = field.children[index];
+      if (current && current.textContent === digit) continue;
+      const span = document.createElement('span');
+      span.className = 'rv-countdown-digit';
+      span.textContent = digit;
+      if (current) current.replaceWith(span);
+      else field.appendChild(span);
+    }
+    while (field.children.length > value.length) field.lastElementChild.remove();
+  }
 
   function update() {
-    const now = Date.now();
-    const totalSeconds = Math.max(0, Math.ceil((launch - now) / 1000));
-    const values = [
-      Math.floor(totalSeconds / 86400),
-      Math.floor(totalSeconds / 3600) % 24,
-      Math.floor(totalSeconds / 60) % 60,
-      totalSeconds % 60,
-    ];
+    let remaining = Math.max(0, target - Date.now());
+    const days = Math.floor(remaining / 86400000);
+    remaining %= 86400000;
+    const hours = Math.floor(remaining / 3600000);
+    remaining %= 3600000;
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    const values = [days, hours, minutes, seconds];
+    const descriptions = [];
 
     fields.forEach((field, index) => {
-      const value = String(values[index]).padStart(2, '0');
-      if (field.textContent === value) return;
-      field.textContent = value;
-      animations.get(field)?.cancel();
-      animations.delete(field);
-      if (!initialRender && !reducedMotion.matches && typeof field.animate === 'function') {
-        animations.set(field, field.animate(
-          [{ opacity: 0.15, transform: 'translateY(7px)' }, { opacity: 1, transform: 'translateY(0)' }],
-          { duration: 280, easing: 'ease-out' },
-        ));
-      }
+      const numericValue = values[index];
+      const value = index === 0 ? String(numericValue) : String(numericValue).padStart(2, '0');
+      renderDigits(field, value);
+      const label = numericValue === 1 ? units[index].singular : units[index].plural;
+      const description = `${numericValue} ${label}`;
+      field.setAttribute('aria-label', description);
+      descriptions.push(description);
     });
-
-    const progress = Math.min(1, Math.max(0, (now - start) / (launch - start)));
-    flight.style.setProperty('--progress', `${progress * 100}%`);
-    flight.setAttribute('aria-valuenow', String(Math.round(progress * 100)));
-    timer.setAttribute('aria-label', totalSeconds === 0
-      ? 'Launch-Datum erreicht'
-      : `${values[0]} Tage, ${values[1]} Stunden, ${values[2]} Minuten und ${values[3]} Sekunden bis zum Launch`);
-    initialRender = false;
+    timer.setAttribute('aria-label', `Countdown bis zum 6. Dezember 2026: ${descriptions.join(', ')}`);
   }
 
   update();
-  // Recalculate from the clock so suspended tabs and delayed ticks never accumulate drift.
+  // Read the actual clock each time; no drift after delayed or suspended ticks.
   setInterval(update, 250);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) update();
