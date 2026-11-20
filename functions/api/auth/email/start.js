@@ -13,29 +13,70 @@ const reserve = `
     AND (SELECT count(*) FROM email_login_attempts WHERE issued_at > ?5 - 3600) < 300
 `;
 
+// Only denied requests need the next release time for the overlapping windows.
+const nextAdmission = `
+  SELECT max(
+    1,
+    coalesce((SELECT max(issued_at) + 60 - ?3 FROM email_login_attempts WHERE email_key = ?1), 0),
+    coalesce((SELECT issued_at + 3600 - ?3 FROM email_login_attempts WHERE email_key = ?1 ORDER BY issued_at DESC LIMIT 1 OFFSET 4), 0),
+    coalesce((SELECT issued_at + 3600 - ?3 FROM email_login_attempts WHERE ip_key = ?2 ORDER BY issued_at DESC LIMIT 1 OFFSET 19), 0),
+    coalesce((SELECT issued_at + 3600 - ?3 FROM email_login_attempts ORDER BY issued_at DESC LIMIT 1 OFFSET 299), 0)
+  ) AS seconds
+`;
+
+function failure(error, status, retrySeconds) {
+  const result = json({ error }, status);
+  if (retrySeconds) result.headers.set('Retry-After', String(retrySeconds));
+  return result;
+}
+
+function responseDelay(response) {
+  const value = response.headers.get('Retry-After');
+  if (!value) return null;
+  if (/^\d+$/.test(value)) return Math.min(Number(value), 86400) * 1000;
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.max(0, Math.min(date - Date.now(), 86400000)) : null;
+}
+
 async function submitMail(env, message, deliveryKey) {
   const headers = {
     Authorization: 'Bearer ' + env.RESEND_API_KEY,
     'Content-Type': 'application/json',
     'Idempotency-Key': deliveryKey,
   };
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  // Two 9s attempts and a delay of at most 2s leave room for D1 within the UI's 35s timeout.
+  for (let attempt = 1; ; attempt++) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6000);
+    const timer = setTimeout(() => controller.abort(), 9000);
+    let delay = 250;
+    let category;
+    let status;
     try {
       const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST', headers, body: message, signal: controller.signal,
+        method: 'POST', headers, body: message, signal: controller.signal, redirect: 'error',
       });
-      if (response.ok) return true;
-      console.warn('email_auth_start', { stage: 'resend', attempt, status: response.status });
-      if (response.status < 500 && response.status !== 408) return false;
+      status = response.status;
+      const data = await response.json().catch(() => null);
+      if (response.ok && typeof data?.id === 'string' && data.id.trim()) return null;
+      delay = responseDelay(response) ?? (status === 429 ? 1000 : 250);
+      if (response.ok) category = 'missing_receipt';
+      else if ((status === 429 && ['daily_quota_exceeded', 'monthly_quota_exceeded'].includes(data?.name))
+        || (status === 403 && data?.name === 'email_above_quota')) category = 'quota';
+      else if (status === 429) category = 'rate_limit';
+      else if (status === 409 && data?.name === 'concurrent_idempotent_requests') category = 'in_progress';
+      else if (status === 408 || status >= 500) category = 'temporary';
+      else category = 'rejected';
     } catch {
-      console.warn('email_auth_start', { stage: 'resend', attempt, category: controller.signal.aborted ? 'timeout' : 'transport' });
+      category = controller.signal.aborted ? 'timeout' : 'transport';
     } finally {
       clearTimeout(timer);
     }
+    console.warn('email_auth_start', { stage: 'resend', attempt, ...(status ? { status } : {}), category });
+    if (category === 'quota') return failure('delivery_quota', 503);
+    if (category === 'rejected') return failure('delivery_unavailable', 503);
+    if (attempt === 2 || delay > 2000) return failure('delivery_busy', 503, Math.max(60, Math.ceil(delay / 1000)));
+    if (delay) await new Promise(resolve => setTimeout(resolve, delay));
   }
-  return false;
 }
 
 export async function onRequestPost({ request, env }) {
@@ -69,21 +110,33 @@ export async function onRequestPost({ request, env }) {
     setCookie(accepted, challengeCookie, pending, lifetime);
     const db = env.DVN_AUTH_DB;
     stage = 'reserve';
-    const [, admission] = await db.batch([
+    const [prune, admission] = await db.batch([
       db.prepare('DELETE FROM email_login_attempts WHERE issued_at <= ?').bind(now - 3600),
       db.prepare(reserve).bind(challengeKey, codeMac, emailKey, ipKey, now),
     ]);
-    if (admission.meta.changes !== 1) return json({ error: 'rate_limited' }, 429);
+    if (!prune || prune.success === false || !admission || admission.success === false || ![0, 1].includes(admission.meta?.changes)) {
+      console.warn('email_auth_start', { stage, category: 'unconfirmed_write' });
+      return failure('unavailable', 503);
+    }
+    if (admission.meta.changes === 0) {
+      const until = await db.prepare(nextAdmission).bind(emailKey, ipKey, now).first();
+      return failure('rate_limited', 429, until?.seconds ?? 60);
+    }
     stage = 'resend';
     const message = JSON.stringify({
       from: 'DVN CLOTHING <account@dvnclothing.com>',
       to: [email],
       ...signInMessage(code, payload.language ?? payload.lang, lifetime),
     });
-    if (await submitMail(env, message, 'dvn-login-' + challengeKey)) return accepted;
-    return json({ error: 'unavailable' }, 503);
-  } catch {
-    console.warn('email_auth_start', { stage, category: 'internal' });
+    const deliveryFailure = await submitMail(env, message, 'dvn-login-' + challengeKey);
+    return deliveryFailure ?? accepted;
+  } catch (error) {
+    let category = 'internal';
+    if (stage === 'reserve') {
+      const messages = [error?.message, error?.cause?.message].join(' ');
+      category = /quota|daily.*limit|limit.*daily|free tier/i.test(messages) ? 'quota' : 'database';
+    }
+    console.warn('email_auth_start', { stage, category });
     return json({ error: 'unavailable' }, 503);
   }
 }

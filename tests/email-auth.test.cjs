@@ -40,7 +40,7 @@ function fixture(t, provider = 200) {
     assert.equal(url, 'https://api.resend.com/emails');
     assert.equal(options.headers.Authorization, 'Bearer test-sender');
     messages.push(JSON.parse(options.body));
-    return typeof provider === 'function' ? provider(options) : Response.json({}, { status: provider });
+    return typeof provider === 'function' ? provider(options) : Response.json({ id: 'test-id' }, { status: provider });
   });
   async function request(method, data, cookie = '', origin = site) {
     const { onRequestPost } = await import('../functions/api/auth/email/' + method + '.js');
@@ -90,7 +90,10 @@ test('email cooldown, attempt exhaustion, and expiry prohibit further use', asyn
   const { request, messages, db } = fixture(t);
   const first = await request('start', { email: 'member@example.test' });
   const cookie = first.headers.getSetCookie()[0].split(';')[0];
-  assert.equal((await request('start', { email: 'MEMBER@example.test' })).status, 429);
+  const cooldown = await request('start', { email: 'MEMBER@example.test' });
+  assert.equal(cooldown.status, 429);
+  assert.deepEqual(await cooldown.json(), { error: 'rate_limited' });
+  assert.ok(Number(cooldown.headers.get('Retry-After')) >= 59);
   assert.equal(messages.length, 1);
   const code = messages[0].text.match(/DVN-(\d{6})/)[1];
   const wrong = String((Number(code) + 1) % 1_000_000).padStart(6, '0');
@@ -115,7 +118,7 @@ test('rejects cross-site or malformed requests and fails closed on sender failur
   assert.equal(db.prepare('SELECT count(*) AS count FROM email_login_attempts').get().count, 1);
   assert.equal(messages.length, 1);
   assert.deepEqual(log.mock.calls.map(call => call.arguments), [
-    ['email_auth_start', { stage: 'resend', attempt: 1, status: 403 }],
+    ['email_auth_start', { stage: 'resend', attempt: 1, status: 403, category: 'rejected' }],
   ]);
   const code = messages[0].text.match(/DVN-(\d{6})/)[1];
   assert.equal((await request('verify', { code })).status, 400);
@@ -162,8 +165,77 @@ test('a failed D1 reservation logs its stage and never contacts Resend', async t
   assert.equal(failed.headers.get('Set-Cookie'), null);
   assert.equal(messages.length, 0);
   assert.deepEqual(log.mock.calls.map(call => call.arguments), [
-    ['email_auth_start', { stage: 'reserve', category: 'internal' }],
+    ['email_auth_start', { stage: 'reserve', category: 'database' }],
   ]);
+});
+
+test('short provider rate limit waits before retrying exactly the same message', async t => {
+  const log = t.mock.method(console, 'warn', () => {});
+  const schedule = globalThis.setTimeout;
+  const waits = [];
+  t.mock.method(globalThis, 'setTimeout', (callback, ms) => {
+    waits.push(ms);
+    return schedule(callback, ms === 1000 ? 0 : ms);
+  });
+  const deliveries = [];
+  const { request } = fixture(t, options => {
+    deliveries.push([options.headers['Idempotency-Key'], options.body]);
+    return deliveries.length === 1
+      ? Response.json({ name: 'rate_limit_exceeded' }, { status: 429, headers: { 'Retry-After': '1' } })
+      : Response.json({ id: 'accepted' });
+  });
+  const result = await request('start', { email: 'member@example.test' });
+  assert.equal(result.status, 202);
+  assert.ok(result.headers.get('Set-Cookie'));
+  assert.deepEqual(waits, [9000, 1000, 9000]);
+  assert.equal(deliveries.length, 2);
+  assert.deepEqual(deliveries[1], deliveries[0]);
+  assert.deepEqual(log.mock.calls[0].arguments[1], { stage: 'resend', attempt: 1, status: 429, category: 'rate_limit' });
+});
+
+for (const [status, name, delay, category, error, count] of [
+  [403, 'email_above_quota', '0', 'quota', 'delivery_quota', 1],
+  [429, 'monthly_quota_exceeded', '1', 'quota', 'delivery_quota', 1],
+  [429, 'daily_quota_exceeded', '0', 'quota', 'delivery_quota', 1],
+  [429, 'rate_limit_exceeded', '120', 'rate_limit', 'delivery_busy', 1],
+  [409, 'concurrent_idempotent_requests', '0', 'in_progress', 'delivery_busy', 2],
+  [409, 'invalid_idempotent_request', '0', 'rejected', 'delivery_unavailable', 1],
+  [503, 'service_unavailable', '0', 'temporary', 'delivery_busy', 2],
+  [200, null, '0', 'missing_receipt', 'delivery_busy', 2],
+]) {
+  test('bounds mail retries and withholds the challenge for ' + (name || 'missing receipt'), async t => {
+    const log = t.mock.method(console, 'warn', () => {});
+    const { request, messages } = fixture(t, () => Response.json({ name, message: 'private provider text' }, {
+      status, headers: { 'Retry-After': delay },
+    }));
+    const failed = await request('start', { email: 'member@example.test' });
+    assert.equal(failed.status, 503);
+    assert.deepEqual(await failed.json(), { error });
+    assert.equal(failed.headers.get('Set-Cookie'), null);
+    assert.equal(failed.headers.get('Retry-After'), error === 'delivery_busy' ? String(Math.max(60, Number(delay))) : null);
+    assert.equal(messages.length, count);
+    assert.deepEqual(log.mock.calls.map(call => call.arguments[1]), Array.from({ length: count }, (_, i) => ({
+      stage: 'resend', attempt: i + 1, status, category,
+    })));
+  });
+}
+
+test('admission distinguishes exhausted D1 quota and uncertain D1 writes from local throttling', async t => {
+  const log = t.mock.method(console, 'warn', () => {});
+  const { request, env, messages } = fixture(t);
+  let n = 0;
+  t.mock.method(env.DVN_AUTH_DB, 'batch', () => {
+    if (!n++) throw Error('D1_ERROR', { cause: Error('daily D1 rows written limit, private context') });
+    return [{ success: true }, { success: false, meta: { changes: 0 } }];
+  });
+  for (const category of ['quota', 'unconfirmed_write']) {
+    const response = await request('start', { email: 'member@example.test' });
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { error: 'unavailable' });
+    assert.equal(response.headers.get('Set-Cookie'), null);
+    assert.deepEqual(log.mock.calls.at(-1).arguments, ['email_auth_start', { stage: 'reserve', category }]);
+  }
+  assert.equal(messages.length, 0);
 });
 
 test('limits mail delivery across different addresses on the same IP', async t => {
@@ -171,7 +243,9 @@ test('limits mail delivery across different addresses on the same IP', async t =
   for (let i = 0; i < 20; i++) {
     assert.equal((await request('start', { email: 'member' + i + '@example.test' })).status, 202);
   }
-  assert.equal((await request('start', { email: 'other@example.test' })).status, 429);
+  const limited = await request('start', { email: 'other@example.test' });
+  assert.equal(limited.status, 429);
+  assert.ok(Number(limited.headers.get('Retry-After')) >= 3599);
   assert.equal(messages.length, 20);
 });
 

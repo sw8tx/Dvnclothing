@@ -22,6 +22,13 @@
       sessionError: 'Dein Konto ist gerade nicht erreichbar. Bitte versuche es erneut.', retry: 'Erneut prüfen',
       invalidCode: 'Der Code ist falsch oder abgelaufen. Prüfe die Eingabe oder fordere einen neuen Code an.',
       limit: 'Zu viele Versuche. Warte einen Moment und versuche es erneut.', sendError: 'Der Code konnte nicht versendet werden. Bitte versuche es erneut.',
+      addressInvalid: 'Prüfe die Schreibweise deiner E-Mail-Adresse.',
+      sendUnconfirmed: 'Wir konnten den Versand nicht bestätigen. Prüfe deine Verbindung und versuche es noch einmal.',
+      sendBusy: 'Der E-Mail-Versand ist gerade ausgelastet.',
+      sendQuota: 'Das Versandlimit ist erreicht. Bitte versuche es später erneut.',
+      sendOffline: 'Die Anmeldung per E-Mail ist vorübergehend nicht verfügbar. Bitte versuche es später erneut.',
+      sendForbidden: 'Lade die Shopseite neu und fordere den Code noch einmal an.',
+      nextTry: 'Nächster Versuch ab {time} Uhr.',
       verifyError: 'Der Code konnte nicht geprüft werden. Bitte versuche es erneut.', logoutError: 'Die Abmeldung ist fehlgeschlagen. Bitte versuche es erneut.',
       profileError: 'Dein Profil konnte nicht gespeichert werden. Bitte prüfe deine Angaben und versuche es erneut.',
       denied: 'Die Anmeldung wurde abgebrochen oder ist fehlgeschlagen.', expired: 'Bitte melde dich erneut an.',
@@ -61,6 +68,13 @@
       sessionError: 'Your account is temporarily unavailable. Please try again.', retry: 'Check again',
       invalidCode: 'The code is incorrect or has expired. Check the code or request a new one.',
       limit: 'Too many attempts. Wait a moment and try again.', sendError: 'We couldn’t send your code. Please try again.',
+      addressInvalid: 'Check the spelling of your email address.',
+      sendUnconfirmed: 'We couldn’t confirm whether your code was sent. Check your connection and try again.',
+      sendBusy: 'Email delivery is busy right now.',
+      sendQuota: 'The email sending limit has been reached. Please try again later.',
+      sendOffline: 'Email sign-in is temporarily unavailable. Please try again later.',
+      sendForbidden: 'Reload the shop page and request your code again.',
+      nextTry: 'Try again at {time}.',
       verifyError: 'We couldn’t verify your code. Please try again.', logoutError: 'We couldn’t sign you out. Please try again.',
       profileError: 'We couldn’t save your profile. Check the details and try again.',
       denied: 'Sign-in was cancelled or unsuccessful.', expired: 'Please sign in again.',
@@ -92,6 +106,7 @@
   let action = '';
   let error = '';
   let feedback = '';
+  let sendRetryAt = 0;
   let cartIntent = false;
   let email = '';
   let resendAt = 0;
@@ -268,6 +283,10 @@
     const alert = find('[data-account-error]');
     alert.hidden = !error;
     alert.textContent = t[error] || '';
+    if (error && sendRetryAt > Date.now()) {
+      const time = new Intl.DateTimeFormat(language() === 'en' ? 'en-GB' : 'de-DE', { timeStyle: 'medium' }).format(sendRetryAt);
+      alert.textContent += ' ' + t.nextTry.replace('{time}', time);
+    }
     const confirmation = find('[data-account-feedback]');
     confirmation.hidden = !feedback;
     confirmation.textContent = t[feedback] || '';
@@ -301,15 +320,30 @@
   }
 
   async function api(path, body) {
-    const options = { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) };
-    if (body !== undefined) Object.assign(options, { method: 'POST', body: JSON.stringify(body) });
-    if (body !== undefined) options.headers['Content-Type'] = 'application/json';
-    const response = await fetch('/api/auth/' + path, options);
-    if (!response.ok) {
-      throw Object.assign(new Error('Account request failed'), { status: response.status });
+    const controller = new AbortController();
+    // The send request can include two provider attempts plus time in D1.
+    const timeout = setTimeout(() => controller.abort(), path === 'email/start' ? 35000 : 15000);
+    const options = { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' }, signal: controller.signal };
+    if (body !== undefined) {
+      options.method = 'POST';
+      options.headers['Content-Type'] = 'application/json';
+      options.body = JSON.stringify(body);
     }
-    if (response.status === 204) return null;
-    return response.json();
+    try {
+      const response = await fetch('/api/auth/' + path, options);
+      if (!response.ok) {
+        const details = await response.json().catch(() => null);
+        const retry = Number(response.headers.get('Retry-After'));
+        throw Object.assign(new Error('Account request failed'), {
+          status: response.status, reason: details?.error,
+          retrySeconds: Number.isInteger(retry) && retry > 0 && retry <= 86400 ? retry : 0,
+        });
+      }
+      if (response.status === 204) return null;
+      return await response.json();
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   function checkSession() {
@@ -376,6 +410,7 @@
   async function perform(nextAction, errorKey, task) {
     if (action) return;
     action = nextAction;
+    sendRetryAt = 0;
     feedback = error = '';
     render();
     try {
@@ -393,6 +428,20 @@
         }
       }
       else if (err.status === 503 && nextAction === 'save') error = 'profileOffline';
+      else if (nextAction === 'send') {
+        if (err.retrySeconds) {
+          sendRetryAt = Date.now() + err.retrySeconds * 1000;
+          if (page === 'code') resendAt = Math.max(resendAt, sendRetryAt);
+        }
+        if (err.status === 429) error = 'limit';
+        else if (err.status === 400) error = 'addressInvalid';
+        else if (err.status === 401) error = 'expired';
+        else if (err.status === 403) error = 'sendForbidden';
+        else if (err.reason === 'delivery_quota') error = 'sendQuota';
+        else if (err.reason === 'delivery_busy') error = 'sendBusy';
+        else if (err.status === 503) error = 'sendOffline';
+        else error = 'sendUnconfirmed';
+      }
       else if (err.status === 429) error = 'limit';
       else if (err.status === 400 && nextAction === 'verify') error = 'invalidCode';
       else if (err.status === 401 && nextAction === 'save') { await checkSession(); error = 'expired'; }
@@ -409,7 +458,8 @@
     await perform('send', 'sendError', async () => {
       const payload = { email: target, language: language() };
       if (linkFlow) payload.purpose = 'link';
-      await api('email/start', payload);
+      const result = await api('email/start', payload);
+      if (result?.sent !== true) throw new Error('Unconfirmed email request');
       email = target;
       const now = Date.now();
       resendAt = now + 60000;
@@ -434,6 +484,14 @@
     event.preventDefault();
     code.value = digits(text);
   });
+  for (const field of [mail, linkEmail]) {
+    field.addEventListener('input', () => {
+      if (!error) return;
+      error = '';
+      sendRetryAt = 0;
+      render();
+    });
+  }
   find('[data-account-link-form]').addEventListener('submit', e => {
     e.preventDefault();
     if (linkFlow && user?.provider === 'google') sendCode(false);
