@@ -20,9 +20,12 @@
   <main class="launch">
     <h1 lang="en">dev clothing.com is launching soon</h1>
     <div class="countdown" role="timer" aria-live="off" aria-label="Countdown bis zum 6. Dezember 2026">
-      <span class="days" id="days">16</span>
-      <span class="days-label" id="days-label">Tage bis zum Launch</span>
+      <div class="time-unit"><span class="value" id="days">--</span><span class="unit-label">Tage</span></div>
+      <div class="time-unit"><span class="value" id="hours">--</span><span class="unit-label">Stunden</span></div>
+      <div class="time-unit"><span class="value" id="minutes">--</span><span class="unit-label">Minuten</span></div>
+      <div class="time-unit"><span class="value" id="seconds">--</span><span class="unit-label">Sekunden</span></div>
     </div>
+    <p class="launch-date">06. Dezember 2026</p>
     <noscript><p class="no-script">Launch am 6. Dezember 2026. Für den aktuellen Countdown bitte JavaScript aktivieren.</p></noscript>
   </main>
 
@@ -34,6 +37,7 @@
       </div>
       <div class="rocket-position" aria-hidden="true">
         <div class="rocket-float">
+          <span class="exhaust" aria-hidden="true"></span>
           <img class="rocket" src="/assets/rocket.png" alt="" width="572" height="248" decoding="async">
         </div>
       </div>
