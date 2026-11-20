@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { writeMailViews } from './mail-views.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = path.join(root, 'dist');
@@ -44,4 +45,5 @@ for (const page of pages) {
     versionedAssets.has(source) ? attribute + '="' + versionedAssets.get(source) + '"' : original);
   await writeFile(dest, rewritten);
 }
+await writeMailViews(output);
 console.log('Cloudflare Pages output ready in dist/');

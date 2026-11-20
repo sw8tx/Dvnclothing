@@ -55,7 +55,8 @@
   globalThis.DVNLocale = { t, setLanguage, get language() { return language; } };
   let saved;
   try { saved = localStorage.getItem('dvn-language'); } catch { /* Use German as the default. */ }
-  setLanguage(supported(saved) ? saved : 'de', false);
+  const requested = document.location ? new URLSearchParams(document.location.search).get('lang') : null;
+  setLanguage(supported(requested) ? requested : supported(saved) ? saved : 'de', false);
 
   document.querySelectorAll('[data-language]').forEach((button) => {
     button.addEventListener('click', () => {

@@ -67,7 +67,7 @@ test('a mailed code only works once in the requesting browser', async t => {
   assert.deepEqual(messages[0].to, ['member@example.test']);
   const code = messages[0].text.match(/DVN-(\d{6})/)[1];
   assert.ok(messages[0].html.includes('DVN-' + code));
-  assert.ok(messages[0].html.includes('assets/brand/dvn-mail-avatar.png'));
+  assert.ok(messages[0].html.includes(site + '/assets/brand/dvn-mail-wordmark.png'));
   assert.ok(messages[0].html.includes(site + '/privacy.html'));
   assert.ok(messages[0].text.includes(site + '/impressum.html'));
   assert.ok(!messages[0].subject.includes(code));

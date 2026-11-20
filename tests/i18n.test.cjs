@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const translations = readFileSync(require.resolve('../translations.js'), 'utf8');
 const source = readFileSync(require.resolve('../i18n.js'), 'utf8');
 
-function mount(storage = new Map()) {
+function mount(storage = new Map(), search = '') {
   const text = { dataset: { i18n: 'footer.imprint' } };
   const title = { dataset: { i18n: 'page.imprint' } };
   const meta = { dataset: { i18nContent: 'meta.description' }, setAttribute(key, value) { this[key] = value; } };
@@ -25,6 +25,7 @@ function mount(storage = new Map()) {
     '[data-language-current]': flags, '[data-language]': buttons, '[data-launch-date]': [date],
   };
   const document = {
+    location: { search },
     documentElement: {},
     querySelector: () => menu,
     querySelectorAll: (selector) => selectors[selector] || [],
@@ -33,6 +34,7 @@ function mount(storage = new Map()) {
   };
   const context = {
     document,
+    URLSearchParams,
     localStorage: { getItem: (key) => storage.get(key), setItem: (key, value) => storage.set(key, value) },
     CustomEvent: function (type, options) { this.type = type; this.detail = options.detail; },
   };
@@ -59,6 +61,13 @@ test('the flag picker translates content, metadata, date and accessibility label
   assert.equal(page.menu.open, false);
   assert.equal(page.state.focused, true);
   assert.equal(page.state.events.at(-1).type, 'dvn:languagechange');
+});
+
+test('a mail link opens in its chosen language without changing the saved preference', () => {
+  const storage = new Map([['dvn-language', 'de']]);
+  assert.equal(mount(storage, '?lang=en').document.documentElement.lang, 'en');
+  assert.equal(storage.get('dvn-language'), 'de');
+  assert.equal(mount(storage, '?lang=unknown').document.documentElement.lang, 'de');
 });
 
 test('the saved language survives navigation and can be switched back', () => {
