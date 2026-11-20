@@ -20,7 +20,7 @@ export async function onRequestGet({ request, env }) {
     const { id_token: idToken } = await tokenResponse.json();
     const profile = await verifyGoogleToken(idToken, env.GOOGLE_CLIENT_ID, pending.nonce);
     const session = await seal({ ...profile, exp: Math.floor(Date.now() / 1000) + 604800 }, env.AUTH_COOKIE_SECRET);
-    const response = noStore(Response.redirect(`${site}/`, 302));
+    const response = noStore(Response.redirect(`${site}/?login=complete`, 302));
     clearCookie(response, '__Host-dvn-pending');
     setCookie(response, '__Host-dvn-session', session, 604800);
     return response;

@@ -12,11 +12,6 @@
 .site-header .wordmark { grid-column: 2; grid-row: 1; padding: 7px 0; }
 .site-header .wordmark img { width: 106px; height: auto; mix-blend-mode: multiply; }
 .header-nav, .header-actions { display: flex; align-items: center; }
-.google-auth { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 12px; border: 1px solid #d0d0c9; background: transparent; color: #161714; font: 600 12px "Manrope Variable", Arial, sans-serif; cursor: pointer; white-space: nowrap; }
-.google-auth[hidden] { display: none; }
-.google-auth:hover { background: #edede9; }
-.google-auth:focus-visible { outline: 2px solid #161714; outline-offset: 2px; }
-.google-icon { font: 700 18px Arial, sans-serif; }
 .header-nav { grid-column: 1; grid-row: 1; gap: clamp(18px, 3vw, 44px); }
 .header-actions { justify-content: flex-end; grid-column: 3; grid-row: 1; gap: clamp(8px, 1.8vw, 27px); }
 .header-nav a, .site-header .admin-link, .masthead-bag {
@@ -80,8 +75,6 @@
   .rv-home #launch .rv-countdown-clock { margin: 26px 0 0; width: min(100%, 470px); grid-column: 1; grid-row: auto; }
 }
 @media (max-width: 560px) {
-  .google-auth { padding: 0 7px; font-size: 10px; min-height: 40px; }
-  .google-icon { display: none; }
   .site-header { padding-inline: 15px; }
   .header-nav .header-launch { display: none; }
   .header-nav a { font-size: 11px; }
@@ -95,4 +88,75 @@
   .campaign-copy { width: 100%; padding-bottom: 27px; }
   .campaign h1 { font-size: clamp(65px, 16vw, 90px); }
   .campaign-link { min-height: 43px; margin-top: 20px; }
+}
+
+.account-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 36px;
+  min-height: 44px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: #161714;
+  font: 600 12px/1.2 "Manrope Variable", Arial, sans-serif;
+  cursor: pointer;
+}
+.account-trigger:hover span { text-decoration: underline; text-underline-offset: 4px; }
+.account-dialog {
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 32px));
+  max-height: min(700px, calc(100dvh - 32px));
+  margin: auto;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid #d3d3cc;
+  background: #fbfaf6;
+  color: #1c1c18;
+  box-shadow: 0 20px 70px #10100f42;
+  font-family: "Manrope Variable", Arial, sans-serif;
+}
+.account-dialog::backdrop { background: rgb(14 14 12 / 62%); }
+.account-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin: 0 24px;
+  padding: 12px 0;
+  border-bottom: 1px solid #d9d9d2;
+}
+.account-top img { width: 70px; height: auto; mix-blend-mode: multiply; }
+.account-close {
+  width: 42px; height: 42px; padding: 0; border: none; color: inherit;
+  background: transparent; font: 300 29px/1 Arial, sans-serif; cursor: pointer;
+}
+.account-body { padding: 28px 24px 32px; }
+.account-body h2 { margin: 0; font-size: clamp(32px, 5vw, 44px); line-height: 1.12; font-weight: 550; letter-spacing: -.055em; }
+.account-body > p { margin: 16px 0; line-height: 1.65; font-size: 14px; }
+.account-body #account-summary { color: #53554e; }
+.account-identity { display: grid; gap: 2px; overflow-wrap: anywhere; }
+.account-error { color: #8b3028; }
+.account-primary, .account-secondary {
+  display: flex; width: 100%; min-height: 46px; margin-top: 22px; align-items: center; justify-content: center;
+  padding: 8px 16px; border: 1px solid #24251f; border-radius: 0; line-height: 1.4;
+  font-family: inherit; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer;
+}
+.account-primary { background: #24251f; color: #fff; }
+.account-secondary { color: #24251f; background: transparent; }
+.account-primary:hover { background: #44463c; }
+.account-secondary:hover { background: #eae9e3; }
+.account-secondary:disabled { opacity: .6; cursor: progress; }
+.account-contact { display: block; width: fit-content; margin-top: 16px; color: inherit; font-size: 12px; text-underline-offset: 4px; }
+.account-trigger:focus-visible, .account-dialog :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+@media (max-width: 860px) {
+  .account-trigger span { display: none; }
+  .account-trigger { min-width: 30px; }
+}
+@media (max-width: 420px) {
+  .header-actions { gap: 5px; }
+  .account-trigger { min-width: 25px; }
+  .site-header .wordmark img { width: 68px; }
 }

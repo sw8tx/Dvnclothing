@@ -22,7 +22,10 @@
       <a class="header-launch" href="/#launch" data-i18n="masthead.release">Launch</a>
     </nav>
     <div class="header-actions">
-      <button class="google-auth" type="button" data-google-auth hidden><span class="google-icon" aria-hidden="true">G</span><span data-google-auth-label>Mit Google anmelden</span></button>
+      <button class="account-trigger" type="button" data-google-auth aria-label="Mein Konto" aria-haspopup="dialog" aria-controls="account-dialog">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 21v-2a7.5 7.5 0 0 1 15 0v2"/></svg>
+        <span data-account-label>Konto</span>
+      </button>
       <a class="admin-link" href="https://dash.cloudflare.com/?to=/19c22c3dff85cd28e6351907c5e70b9a/pages/view/dvnclothing" target="_blank" rel="noopener noreferrer" data-i18n="nav.admin" data-i18n-aria="nav.adminLabel" aria-label="Admin Login – Cloudflare-Verwaltung in neuem Tab öffnen">Admin Login</a>
       <details class="language-menu" hidden>
         <summary data-i18n-aria="nav.language" aria-label="Sprache wählen">
@@ -97,5 +100,21 @@
       </a>
     </div>
   </footer>
+  <dialog class="account-dialog" id="account-dialog" aria-labelledby="account-title" aria-describedby="account-summary">
+    <div class="account-top">
+      <img src="/assets/dvn-wordmark.png" width="1038" height="453" alt="DVN CLOTHING">
+      <button type="button" class="account-close" data-account-close aria-label="Schließen" autofocus>×</button>
+    </div>
+    <div class="account-body">
+      <h2 id="account-title">Mein Konto</h2>
+      <p id="account-summary" aria-live="polite">Dein Anmeldestatus wird geladen.</p>
+      <p class="account-identity" data-account-identity hidden><strong data-account-name></strong><span data-account-email></span></p>
+      <p class="account-error" data-account-error role="alert" hidden></p>
+      <a class="account-primary" data-account-start hidden>Mit Google anmelden</a>
+      <button class="account-secondary" type="button" data-account-retry hidden>Erneut versuchen</button>
+      <button class="account-secondary" type="button" data-account-logout hidden>Abmelden</button>
+      <a class="account-contact" data-account-contact href="mailto:service@dvnclothing.com" hidden>service@dvnclothing.com</a>
+    </div>
+  </dialog>
 </body>
 </html>
