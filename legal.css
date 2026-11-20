@@ -24,3 +24,6 @@
 .contact-list dd { margin: 0; font-size: 16px; line-height: 1.65; overflow-wrap: anywhere; }
 .contact-list address { font-style: normal; }
 @media(max-width: 620px) { .legal-grid { grid-template-columns: 1fr; gap: 0; } }
+
+html:not([lang="en"]) .imprint-copy[lang="en"],
+html[lang="en"] .imprint-copy[lang="de"] { display: none; }

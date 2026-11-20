@@ -29,3 +29,9 @@
 
 /assets/dvn-logo-white.png
   Cache-Control: public, max-age=0, must-revalidate
+
+/impressum
+  Cache-Control: no-cache, must-revalidate
+
+/impressum.html
+  Cache-Control: no-cache, must-revalidate
