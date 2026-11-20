@@ -2,7 +2,7 @@
 
 Der Bonus beträgt 15 % auf die erste Bestellung und wird im angemeldeten Konto angezeigt. Die Ausgabe ist auf einen Bonus pro bestätigter E-Mail-Adresse und Anmeldekennung begrenzt. Ein anderer Anmeldeweg mit der gleichen Adresse erhält erst Zugriff, nachdem die Person beide Wege im Konto bestätigt und verbunden hat. Der Adressvergleich verwendet die getrimmte, kleingeschriebene Adresse. Alias-Adressen werden eigenständig behandelt.
 
-Die bestehende D1-Bindung heißt `DVN_AUTH_DB`. Vor Freischaltung des Bonus die Migrationen `migrations/0003_welcome_bonus.sql`, `migrations/0004_account_links.sql` und `migrations/0005_bonus_email.sql` auf die Datenbank anwenden. Ein Ausfall des Bonus betrifft ausschließlich den Bonus-Endpunkt. Die Tabelle enthält die Anmeldekennung, einen adressbezogenen Hash, den persönlichen Code, den Erstellzeitpunkt, den Sperrstatus und gegebenenfalls die beiden Stripe-Sandbox-IDs. Marketing-E-Mails werden durch die Gutschrift nicht ausgelöst.
+Die bestehende D1-Bindung heißt `DVN_AUTH_DB`. Vor Freischaltung des Bonus die Migrationen `migrations/0003_welcome_bonus.sql` und `migrations/0004_account_links.sql` auf die Datenbank anwenden. Ein Ausfall des Bonus betrifft ausschließlich den Bonus-Endpunkt. Die Tabelle enthält die Anmeldekennung, einen adressbezogenen Hash, den persönlichen Code, den Erstellzeitpunkt, den Sperrstatus und gegebenenfalls die beiden Stripe-Sandbox-IDs. Der persönliche Rabattcode lässt sich im Konto kopieren.
 
 ## Konto-API
 
@@ -10,7 +10,6 @@ Die bestehende D1-Bindung heißt `DVN_AUTH_DB`. Vor Freischaltung des Bonus die 
 | --- | --- |
 | GET /api/account/bonus | Eigener Bonus oder `{"bonus":null}` |
 | POST /api/account/bonus | Erzeugt den persönlichen Code einmalig oder liefert den vorhandenen zurück |
-| POST /api/account/bonus-email mit `{"language":"de"}` oder `{"language":"en"}` | Sendet den vorhandenen Code auf ausdrücklichen Wunsch einmal an die bestätigte Adresse. |
 | HTTP 409 mit `account_link_required` | Diese Adresse hat bereits einen Bonus unter einem getrennten Anmeldeweg. Beide Anmeldewege im Konto bestätigen und verbinden. |
 | Antwort bei vorhandenem Bonus | `{"bonus":{"code":"…","percentOff":15,"firstOrderOnly":true}}` |
 

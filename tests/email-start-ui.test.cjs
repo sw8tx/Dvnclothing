@@ -208,7 +208,6 @@ function memberState(find, lang, pending) {
   if (pending) {
     assert.equal(find('[data-account-bonus-row]').hidden, true);
     assert.equal(find('[data-account-bonus-code]').textContent, '');
-    assert.equal(find('[data-account-bonus-email]').hidden, true);
   }
   assert.equal(find('[data-account-error]').hidden, true);
 }

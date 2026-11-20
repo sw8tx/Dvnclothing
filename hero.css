@@ -149,7 +149,6 @@
 .account-bonus h3 { margin: 0; font: 650 clamp(21px, 4vw, 26px)/1.15 "Manrope Variable", Arial, sans-serif; letter-spacing: -.045em; }
 .account-bonus p { margin: 6px 0; color: #50544a; font-size: 13px; line-height: 1.5; }
 .account-bonus .account-bonus-congrats { margin: 0 0 7px; color: #454a3c; font-size: 11px; font-weight: 700; letter-spacing: .05em; }
-.account-bonus .account-bonus-status { margin: 0; overflow-wrap: anywhere; }
 .account-bonus-code { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 12px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #b2b4a5; }
 .account-bonus-code code { flex: 1 1 auto; overflow-wrap: anywhere; color: #20251a; font-size: 16px; letter-spacing: .055em; user-select: all; }
 .account-copy-button { min-height: 38px; padding: 6px 9px; border: 1px solid #b3b5aa; border-radius: 3px; color: #25271f; background: #fff; font: inherit; font-size: 12px; cursor: pointer; }

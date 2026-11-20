@@ -41,8 +41,6 @@
       profileOffline: 'Dein gespeichertes Profil ist gerade nicht verfügbar. Bitte versuche es noch einmal.', profileRetry: 'Profil erneut laden',
       bonusTitle: '15 % auf deine erste Bestellung', congrats: 'Glückwunsch und willkommen bei DVN!',
       bonusLink: 'Verknüpfe deine Anmeldemethoden, um deinen vorhandenen Code zu sehen.',
-      sendBonus: 'Code per E-Mail erhalten', sendingBonus: 'Wird gesendet …', bonusSent: 'Dein Code wurde an {email} versendet.',
-      bonusMailError: 'Dein Code konnte nicht per E-Mail gesendet werden. Bitte versuche es erneut.',
       bonusIssued: 'Dein persönlicher Willkommenscode', bonusLoading: 'Dein Willkommenscode wird geladen …',
       bonusOffline: 'Wir können deinen Rabattcode gerade nicht laden. Du kannst ihn später hier im Konto abrufen.',
       bonusPaused: 'Dein Rabattcode lässt sich gerade nicht abrufen. Schau ab {time} Uhr wieder hier im Konto vorbei.',
@@ -92,8 +90,6 @@
       profileOffline: 'Your saved profile is temporarily unavailable. Please try again.', profileRetry: 'Reload profile',
       bonusTitle: '15% off your first order', congrats: 'Congratulations and welcome to DVN!',
       bonusLink: 'Connect your sign-in methods to see your existing code.',
-      sendBonus: 'Email me my code', sendingBonus: 'Sending …', bonusSent: 'Your code was sent to {email}.',
-      bonusMailError: 'We couldn’t email your code. Please try again.',
       bonusIssued: 'Your personal welcome code', bonusLoading: 'Loading your welcome code …',
       bonusOffline: 'We can’t load your discount code right now. You can come back to your account to get it later.',
       bonusPaused: 'We can’t load your discount code right now. Check your account again from {time}.',
@@ -131,7 +127,6 @@
   let bonusState = 'idle';
   let bonusCode = '';
   let bonusNotice = '';
-  let bonusEmail = 'idle';
   let newBonus = false;
   let bonusRevision = 0;
   let draftAvatar;
@@ -151,7 +146,7 @@
       bonusRetry = null;
       bonusOwner = next?.id || '';
       bonusCode = bonusNotice = '';
-      bonusState = bonusEmail = 'idle';
+      bonusState = 'idle';
       newBonus = false;
     }
     user = next;
@@ -223,13 +218,6 @@
     find('[data-account-bonus-code]').textContent = bonusCode;
     claim.hidden = !failed;
     claim.textContent = t.bonusRetry;
-    const emailButton = find('[data-account-bonus-email]');
-    emailButton.hidden = !issued;
-    emailButton.disabled = bonusEmail === 'sending' || bonusEmail === 'sent';
-    emailButton.textContent = bonusEmail === 'sending' ? t.sendingBonus : t.sendBonus;
-    const status = find('[data-account-bonus-email-status]');
-    status.hidden = !issued || !['sent', 'failed'].includes(bonusEmail);
-    status.textContent = bonusEmail === 'sent' ? t.bonusSent.replace('{email}', user.email) : bonusEmail === 'failed' ? t.bonusMailError : '';
     find('[data-account-bonus-copy]').textContent = bonusNotice === 'copied' ? t.copied : t.copyCode;
     find('[data-account-bonus-live]').textContent = t[bonusNotice] || '';
     find('[data-account-bonus-live]').classList.toggle('visually-hidden', bonusNotice !== 'manualCopy');
@@ -584,24 +572,6 @@
   });
 
   find('[data-account-bonus-claim]').addEventListener('click', fetchBonus);
-  find('[data-account-bonus-email]').addEventListener('click', async () => {
-    if (!user || bonusState !== 'issued' || bonusEmail === 'sending' || bonusEmail === 'sent') return;
-    const revision = bonusRevision;
-    bonusEmail = 'sending';
-    renderBonus();
-    try {
-      const response = await fetch('/api/account/bonus-email', {
-        method: 'POST', credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(15000),
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ language: language() })
-      });
-      if (!response.ok || (await response.json()).sent !== true) throw new Error('Bonus email unavailable');
-      if (revision === bonusRevision) bonusEmail = 'sent';
-    } catch {
-      if (revision === bonusRevision) bonusEmail = 'failed';
-    }
-    renderBonus();
-  });
   find('[data-account-bonus-copy]').addEventListener('click', async () => {
     if (!bonusCode || !user) return;
     const owner = bonusOwner;
