@@ -5,7 +5,7 @@ const vm = require('node:vm');
 
 const source = readFileSync(require.resolve('../countdown.js'), 'utf8');
 const html = readFileSync(require.resolve('../index.html'), 'utf8');
-const dateTime = html.match(/<time datetime="([^"]+)">/)[1];
+const dateTime = html.match(/<time\b[^>]*\bdatetime="([^"]+)"/)[1];
 const target = Date.parse(dateTime);
 
 function mount(now, date = dateTime) {
@@ -27,23 +27,24 @@ function mount(now, date = dateTime) {
   const fields = Object.fromEntries(['days', 'hours', 'minutes', 'seconds'].map((id) => [id, element()]));
   const timer = element();
   const status = element();
-  const state = { now, interval: null, cleared: false };
+  const state = { now, interval: null, cleared: false, listeners: {} };
   const document = {
     hidden: false,
     getElementById: (id) => id === 'launch-status' ? status : fields[id],
     createElement: element,
     querySelector: (selector) => selector.includes(' time')
       ? { dateTime: date, textContent: 'Sonntag, 6. Dezember 2026' } : timer,
-    addEventListener: (_, callback) => { state.visibility = callback; },
+    addEventListener: (name, callback) => { state.listeners[name] = callback; },
   };
-  vm.runInNewContext(source, {
+  const context = {
     document,
     Date: { parse: Date.parse, now: () => state.now },
     setInterval: (callback) => { state.interval = callback; return 1; },
     clearInterval: () => { state.cleared = true; },
-  });
+  };
+  vm.runInNewContext(source, context);
   return {
-    fields, timer, status, state, document,
+    fields, timer, status, state, document, context,
     values: () => Object.values(fields).map((field) => field.children.map((span) => span.textContent).join('')),
   };
 }
@@ -77,7 +78,7 @@ test('opening after launch shows completion without starting an interval', () =>
 test('refreshes from the real clock after a suspended tab resumes', () => {
   const page = mount(target - 2 * 86400000);
   page.state.now = target - 65000;
-  page.state.visibility();
+  page.state.listeners.visibilitychange();
   assert.deepEqual(page.values(), ['0', '00', '01', '05']);
 });
 
@@ -95,4 +96,17 @@ test('an invalid date does not render NaN or start an interval', () => {
   const page = mount(target, 'invalid-date');
   assert.equal(page.state.interval, null);
   assert.equal(page.status.hidden, true);
+});
+
+test('language changes refresh timer accessibility text immediately', () => {
+  const page = mount(target - 65000);
+  const translations = {};
+  vm.runInNewContext(readFileSync(require.resolve('../translations.js'), 'utf8'), translations);
+  page.context.DVNLocale = {
+    t: (key, values = {}) => translations.DVN_TRANSLATIONS.en[key].replace(/\{(\w+)\}/g, (_, name) => values[name]),
+  };
+  page.state.listeners['dvn:languagechange']();
+  assert.equal(page.fields.minutes.attributes['aria-label'], '1 Minute');
+  assert.equal(page.fields.seconds.attributes['aria-label'], '5 Seconds');
+  assert.match(page.timer.attributes['aria-label'], /^Countdown to /);
 });

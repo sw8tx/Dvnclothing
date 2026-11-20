@@ -12,5 +12,17 @@
 /countdown.js
   Cache-Control: public, max-age=0, must-revalidate
 
+/translations.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/i18n.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/assets/dvn-wordmark.png
+  Cache-Control: public, max-age=0, must-revalidate
+
+/assets/dvn-emblem.png
+  Cache-Control: public, max-age=0, must-revalidate
+
 /assets/dvn-logo-white.png
   Cache-Control: public, max-age=0, must-revalidate
