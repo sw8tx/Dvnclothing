@@ -439,6 +439,7 @@
         else if (err.status === 403) error = 'sendForbidden';
         else if (err.reason === 'delivery_quota') error = 'sendQuota';
         else if (err.reason === 'delivery_busy') error = 'sendBusy';
+        else if (err.reason === 'delivery_unconfirmed') error = 'sendUnconfirmed';
         else if (err.status === 503) error = 'sendOffline';
         else error = 'sendUnconfirmed';
       }

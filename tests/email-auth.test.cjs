@@ -138,6 +138,14 @@ test('provider acceptance needs no further D1 writes to release a usable browser
   assert.equal((await request('verify', { code }, challenge)).status, 200);
 });
 
+test('an accepted provider response releases the challenge without reading its optional receipt body', async t => {
+  const { request, messages } = fixture(t, () => new Response(null, { status: 202 }));
+  const response = await request('start', { email: 'member@example.test' });
+  assert.equal(response.status, 202);
+  assert.ok(response.headers.get('Set-Cookie'));
+  assert.equal(messages.length, 1);
+});
+
 test('a lost provider response retries the identical delivery and logs only the failure stage', async t => {
   const log = t.mock.method(console, 'warn', () => {});
   const deliveries = [];
@@ -198,12 +206,11 @@ for (const [status, name, delay, category, error, count] of [
   [429, 'monthly_quota_exceeded', '1', 'quota', 'delivery_quota', 1],
   [429, 'daily_quota_exceeded', '0', 'quota', 'delivery_quota', 1],
   [429, 'rate_limit_exceeded', '120', 'rate_limit', 'delivery_busy', 1],
-  [409, 'concurrent_idempotent_requests', '0', 'in_progress', 'delivery_busy', 2],
+  [409, 'concurrent_idempotent_requests', '0', 'in_progress', 'delivery_unconfirmed', 2],
   [409, 'invalid_idempotent_request', '0', 'rejected', 'delivery_unavailable', 1],
   [503, 'service_unavailable', '0', 'temporary', 'delivery_busy', 2],
-  [200, null, '0', 'missing_receipt', 'delivery_busy', 2],
 ]) {
-  test('bounds mail retries and withholds the challenge for ' + (name || 'missing receipt'), async t => {
+  test('bounds mail retries and withholds the challenge for ' + name, async t => {
     const log = t.mock.method(console, 'warn', () => {});
     const { request, messages } = fixture(t, () => Response.json({ name, message: 'private provider text' }, {
       status, headers: { 'Retry-After': delay },
@@ -212,7 +219,7 @@ for (const [status, name, delay, category, error, count] of [
     assert.equal(failed.status, 503);
     assert.deepEqual(await failed.json(), { error });
     assert.equal(failed.headers.get('Set-Cookie'), null);
-    assert.equal(failed.headers.get('Retry-After'), error === 'delivery_busy' ? String(Math.max(60, Number(delay))) : null);
+    assert.equal(failed.headers.get('Retry-After'), ['delivery_busy', 'delivery_unconfirmed'].includes(error) ? String(Math.max(60, Number(delay))) : null);
     assert.equal(messages.length, count);
     assert.deepEqual(log.mock.calls.map(call => call.arguments[1]), Array.from({ length: count }, (_, i) => ({
       stage: 'resend', attempt: i + 1, status, category,

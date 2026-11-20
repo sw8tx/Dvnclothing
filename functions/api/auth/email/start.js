@@ -56,11 +56,12 @@ async function submitMail(env, message, deliveryKey) {
         method: 'POST', headers, body: message, signal: controller.signal, redirect: 'error',
       });
       status = response.status;
+      // Resend's HTTP acceptance completes the handoff. The sign-in flow does
+      // not use its message ID and must not lose the challenge reading a body.
+      if (response.ok) return null;
       const data = await response.json().catch(() => null);
-      if (response.ok && typeof data?.id === 'string' && data.id.trim()) return null;
       delay = responseDelay(response) ?? (status === 429 ? 1000 : 250);
-      if (response.ok) category = 'missing_receipt';
-      else if ((status === 429 && ['daily_quota_exceeded', 'monthly_quota_exceeded'].includes(data?.name))
+      if ((status === 429 && ['daily_quota_exceeded', 'monthly_quota_exceeded'].includes(data?.name))
         || (status === 403 && data?.name === 'email_above_quota')) category = 'quota';
       else if (status === 429) category = 'rate_limit';
       else if (status === 409 && data?.name === 'concurrent_idempotent_requests') category = 'in_progress';
@@ -74,7 +75,10 @@ async function submitMail(env, message, deliveryKey) {
     console.warn('email_auth_start', { stage: 'resend', attempt, ...(status ? { status } : {}), category });
     if (category === 'quota') return failure('delivery_quota', 503);
     if (category === 'rejected') return failure('delivery_unavailable', 503);
-    if (attempt === 2 || delay > 2000) return failure('delivery_busy', 503, Math.max(60, Math.ceil(delay / 1000)));
+    if (attempt === 2 || delay > 2000) {
+      const uncertain = category === 'timeout' || category === 'transport' || category === 'in_progress';
+      return failure(uncertain ? 'delivery_unconfirmed' : 'delivery_busy', 503, Math.max(60, Math.ceil(delay / 1000)));
+    }
     if (delay) await new Promise(resolve => setTimeout(resolve, delay));
   }
 }
