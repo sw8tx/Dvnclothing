@@ -11,38 +11,41 @@
 </head>
 <body>
   <header class="site-header">
-    <a class="admin-link" href="https://dash.cloudflare.com/?to=/19c22c3dff85cd28e6351907c5e70b9a/pages/view/dvnclothing" target="_blank" rel="noopener noreferrer" aria-label="Admin Login – Cloudflare-Verwaltung in neuem Tab öffnen">
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="5" y="8.5" width="10" height="8" rx="1.8"/><path d="M7 8.5V6a3 3 0 0 1 6 0v2.5"/><path d="M10 12v1.5"/></svg>
-      <span>Admin Login</span>
-    </a>
+    <a class="wordmark" href="/" aria-label="dev clothing – Startseite">dev clothing<span>.</span></a>
+    <a class="admin-link" href="https://dash.cloudflare.com/?to=/19c22c3dff85cd28e6351907c5e70b9a/pages/view/dvnclothing" target="_blank" rel="noopener noreferrer" aria-label="Admin Login – Cloudflare-Verwaltung in neuem Tab öffnen">Admin Login</a>
   </header>
 
+  <div class="waves" aria-hidden="true">
+    <svg viewBox="0 0 1440 220" preserveAspectRatio="none" focusable="false">
+      <path class="wave wave-light" d="M-100 10C140-28 290-8 490 28S775 45 980 12S1240-7 1540 12V100C1240 65 1100 70 900 106S600 110 400 76S100 72-100 82Z"/>
+      <path class="wave wave-gray" d="M-100 40C160 0 280 12 500 54S790 79 1010 37S1290 16 1540 42V126C1290 101 1130 109 920 143S600 142 390 112S100 95-100 116Z"/>
+      <path class="wave wave-black" d="M-100 88C155 44 282 69 502 108S783 130 999 92S1280 62 1540 88V182C1270 139 1110 147 900 184S590 221 383 187S120 151-100 180Z"/>
+    </svg>
+  </div>
+
   <main class="launch">
-    <h1 lang="en">dev clothing.com is launching soon</h1>
+    <p class="eyebrow" lang="en">A date worth waiting for</p>
+    <h1 lang="en">dev clothing.com is launching soon.</h1>
+    <p class="launch-date"><time datetime="2026-12-06T00:00:00+01:00">Sonntag, 6. Dezember 2026</time></p>
     <div class="countdown" role="timer" aria-live="off" aria-label="Countdown bis zum 6. Dezember 2026">
       <div class="time-unit"><span class="value" id="days">--</span><span class="unit-label">Tage</span></div>
       <div class="time-unit"><span class="value" id="hours">--</span><span class="unit-label">Stunden</span></div>
       <div class="time-unit"><span class="value" id="minutes">--</span><span class="unit-label">Minuten</span></div>
       <div class="time-unit"><span class="value" id="seconds">--</span><span class="unit-label">Sekunden</span></div>
     </div>
-    <p class="launch-date">06. Dezember 2026</p>
-    <noscript><p class="no-script">Launch am 6. Dezember 2026. Für den aktuellen Countdown bitte JavaScript aktivieren.</p></noscript>
+    <noscript><p class="no-script">Für den aktuellen Countdown bitte JavaScript aktivieren.</p></noscript>
   </main>
 
   <footer class="journey" aria-label="Fortschritt zum Launch">
     <div class="flight" id="flight" role="progressbar" aria-label="Fortschritt bis zum Launch am 6. Dezember 2026" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <div class="rail" aria-hidden="true">
-        <span class="rail-traveled"></span>
-        <span class="destination"></span>
-      </div>
+      <div class="rail" aria-hidden="true"><span class="rail-traveled"></span><span class="destination"></span></div>
       <div class="rocket-position" aria-hidden="true">
         <div class="rocket-float">
-          <span class="exhaust" aria-hidden="true"></span>
           <img class="rocket" src="/assets/rocket.png" alt="" width="572" height="248" decoding="async">
         </div>
       </div>
     </div>
-    <div class="journey-labels" aria-hidden="true"><span>Auf dem Weg.</span><time datetime="2026-12-06">06.12.2026</time></div>
+    <div class="journey-labels" aria-hidden="true"><span>Auf dem Weg zum Launch</span><time datetime="2026-12-06">06.12.2026</time></div>
   </footer>
 </body>
 </html>
