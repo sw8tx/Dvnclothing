@@ -1,21 +1,8 @@
 # DVN CLOTHING
 
-Statische Coming-soon-Seite für **dvnclothing.com**, ohne externe JavaScript-, Schrift- oder CDN-Abhängigkeiten.
+**First Cut** ist die zweisprachige T-Shirt-Shop-Vorschau auf dvnclothing.com. Besucher können Musterteile ansehen, Varianten und Größen auswählen und ihre Auswahl im Browser speichern. Preise, Bestand, Bestellungen und Zahlungsabwicklung sind für einen späteren Verkaufsstart offen.
 
-## Übernommener Projektstand
-
-- Monochromes Layout mit Wellen, lokal eingebundener Manrope-Schrift und animierten Countdown-Ziffern aus dem vorhandenen Repository.
-- Launch: **6. Dezember 2026, 00:00 Uhr Europe/Berlin**. Der Zeitpunkt steht zentral im `datetime`-Attribut von `index.html`; JavaScript liest ihn dort aus.
-- Die beiden zuletzt bereitgestellten Logos sind unverändert als `assets/dvn-emblem.png` (Header) und `assets/dvn-wordmark.png` (Footer) eingebunden.
-- Admin-Link zur bestehenden Cloudflare-Pages-Verwaltung.
-- Mobile Ansicht und Berücksichtigung reduzierter Bewegung.
-- Footer mit Impressum, Nutzungsbedingungen, Kontakt- und Servicehinweisen.
-- Sprachschalter oben rechts mit lokal gezeichneten Deutschland-/UK-Flaggen. Deutsch ist der Standard; die Wahl wird lokal gespeichert und gilt auch auf den rechtlichen Seiten. Wenn der Browser den Speicher sperrt, funktioniert der Wechsel weiterhin für die aktuelle Seite.
-- Der Sprachwechsel übersetzt auch Countdown-Beschriftungen, Screenreader-Texte, Datum und Seitentitel.
-
-`impressum.html` und `terms.html` sind eigenständig erreichbare Seiten mit deutschem Inhalt auch ohne JavaScript. Die Terms sind ein Muster für die private Coming-soon-Vorschau und keine Verkaufs-AGB. Die angegebene Kontakt-E-Mail `service@dvnclothing.com` ist im Impressum und im Footer direkt verlinkt.
-
-Die Erweiterung ist zur Prüfung über GitHub vorbereitet. Ein Push oder Pull Request veröffentlicht die Änderungen am Quellcode; ein Produktionsdeploy hängt von der eingestellten Cloudflare-Integration ab.
+Die Gestaltung und die [20 untersuchten Shop-Beispiele](design-references.md) sind im Repository dokumentiert. Produktmotive und Kampagnenbild liegen in `assets/shop/`. Die Kontaktadresse lautet `service@dvnclothing.com`.
 
 ## Lokal prüfen
 

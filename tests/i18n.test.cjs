@@ -50,7 +50,8 @@ test('the flag picker translates content, metadata, date and accessibility label
   assert.equal(page.text.textContent, 'Legal notice');
   assert.equal(page.title.textContent, 'Legal notice – DVN CLOTHING');
   assert.equal(page.label['aria-label'], 'Choose language');
-  assert.match(page.meta.content, /Coming soon/);
+  assert.equal(page.meta.content, page.context.DVN_TRANSLATIONS.en['meta.description']);
+  assert.notEqual(page.meta.content, page.context.DVN_TRANSLATIONS.de['meta.description']);
   assert.match(page.date.textContent, /Sunday, 6 December 2026/);
   assert.equal(page.flags[1].hidden, false);
   assert.equal(page.flags[0].hidden, true);

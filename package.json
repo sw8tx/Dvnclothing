@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "check": "node --check countdown.js && node --check translations.js && node --check i18n.js && node --check scripts/build.mjs",
+    "check": "node --check shop.js && node --check countdown.js && node --check translations.js && node --check i18n.js && node --check scripts/build.mjs",
     "test": "node --test",
     "build": "node scripts/build.mjs"
   },

@@ -3,19 +3,30 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="/assets/brand/dvn-mail-avatar.png">
   <meta name="color-scheme" content="light">
-  <meta name="description" data-i18n-content="meta.description" content="DVN CLOTHING – Bald auf dvnclothing.com. Launch am 6. Dezember 2026.">
+  <meta name="description" data-i18n-content="meta.description" content="Entdecke First Cut, die T-Shirt-Kollektion von DVN CLOTHING. Der erste Drop ist für den 6. Dezember 2026 geplant.">
   <meta name="theme-color" content="#171717">
-  <title data-i18n="page.home">DVN CLOTHING – Bald verfügbar</title>
+  <meta property="og:title" content="First Cut · DVN CLOTHING">
+  <meta property="og:image" content="https://dvnclothing.com/assets/shop/hero.webp">
+  <meta property="og:type" content="website">
+  <title data-i18n="page.home">First Cut · T-Shirts | DVN CLOTHING</title>
   <link rel="preload" href="/assets/fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/hero.css">
+  <link rel="stylesheet" href="/shop.css">
   <script src="/translations.js" defer></script>
   <script src="/i18n.js" defer></script>
   <script src="/countdown.js" defer></script>
+  <script src="/shop.js" defer></script>
 </head>
-<body class="rv-home">
+<body id="top" class="rv-home">
   <header class="site-header">
-    <a class="wordmark" href="/" data-i18n-aria="nav.home" aria-label="DVN CLOTHING – Startseite"><img src="/assets/dvn-emblem.png" alt="DVN CLOTHING" width="512" height="512" fetchpriority="high"></a>
+    <a class="wordmark" href="/" data-i18n-aria="nav.home" aria-label="DVN CLOTHING – Startseite"><img src="/assets/dvn-wordmark.png" alt="DVN CLOTHING" width="1038" height="453"></a>
+    <nav class="header-nav" aria-label="Navigation">
+      <a href="#collection" data-i18n="masthead.shop">Kollektion</a>
+      <a class="header-launch" href="#launch" data-i18n="masthead.release">Launch</a>
+    </nav>
     <div class="header-actions">
       <a class="admin-link" href="https://dash.cloudflare.com/?to=/19c22c3dff85cd28e6351907c5e70b9a/pages/view/dvnclothing" target="_blank" rel="noopener noreferrer" data-i18n="nav.admin" data-i18n-aria="nav.adminLabel" aria-label="Admin Login – Cloudflare-Verwaltung in neuem Tab öffnen">Admin Login</a>
       <details class="language-menu" hidden>
@@ -29,18 +40,54 @@
           <button type="button" data-language="en" lang="en" aria-pressed="false"><svg class="flag" viewBox="0 0 30 20" aria-hidden="true" focusable="false"><path fill="#25457a" d="M0 0h30v20H0z"/><path stroke="#fff" stroke-width="5" d="m0 0 30 20M30 0 0 20"/><path stroke="#ce3345" stroke-width="2" d="m0 0 30 20M30 0 0 20"/><path stroke="#fff" stroke-width="7" d="M15 0v20M0 10h30"/><path stroke="#ce3345" stroke-width="4" d="M15 0v20M0 10h30"/></svg><span>English</span><span class="language-check" aria-hidden="true">✓</span></button>
         </div>
       </details>
+      <button type="button" class="masthead-bag" data-open-bag aria-haspopup="dialog"><span class="bag-symbol" aria-hidden="true"></span><span class="visually-hidden" data-i18n="masthead.bag">Warenkorb</span><span data-bag-count>0</span></button>
     </div>
   </header>
 
-  <main class="rv-countdown" aria-labelledby="countdown-title">
-    <svg class="rv-countdown-wave" viewBox="0 0 1440 220" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-      <g class="rv-countdown-wave-light"><path fill="#d8d9d5" d="M0 30C170 -2 310 2 480 34C650 66 790 68 960 34C1130 0 1280 0 1440 28L1440 64C1280 36 1130 36 960 70C790 104 650 102 480 70C310 38 170 34 0 66Z"/></g>
-      <g class="rv-countdown-wave-mid"><path fill="#92948f" d="M0 66C170 34 310 38 480 70C650 102 790 104 960 70C1130 36 1280 36 1440 64L1440 102C1280 74 1130 74 960 108C790 142 650 140 480 108C310 76 170 72 0 104Z"/></g>
-      <g class="rv-countdown-wave-dark"><path fill="#171717" d="M0 104C170 72 310 76 480 108C650 140 790 142 960 108C1130 74 1280 74 1440 102L1440 184C1280 156 1130 156 960 190C790 224 650 222 480 190C310 158 170 154 0 186Z"/></g>
-    </svg>
+  <main id="main-content">
+    <section class="campaign" aria-labelledby="campaign-title">
+      <img class="campaign-image" src="/assets/shop/hero.webp" alt="" fetchpriority="high" width="1172" height="625">
+      <div class="campaign-copy">
+        <p class="campaign-type" data-i18n="campaign.type">T-Shirt-Kollektion</p>
+        <h1 id="campaign-title" lang="en">First <em>Cut.</em></h1>
+        <a class="campaign-link" href="#collection"><span data-i18n="campaign.shop">T-Shirts entdecken</span><span class="campaign-arrow" aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+    <section class="tee-collection" id="collection" aria-labelledby="collection-heading">
+      <div class="tee-collection-head">
+        <div>
+          <p class="tee-overline" data-shop-copy="preview">Kollektionsvorschau</p>
+          <h2 id="collection-heading" data-shop-copy="collection">Die Studio Tees.</h2>
+        </div>
+        <button type="button" data-open-bag class="tee-bag-trigger" aria-haspopup="dialog" hidden><span data-shop-copy="bag">Warenkorb</span> (<span data-bag-count>0</span>)</button>
+      </div>
+      <div class="tee-grid">
+        <article class="tee-card">
+          <div class="tee-photo">
+            <img src="/assets/shop/black.webp" alt="DVN Studio Tee · Ink Black" width="720" height="720" decoding="async">
+            <button type="button" class="tee-hit" data-open-tee="black" aria-label="Studio Tee · Ink Black" aria-haspopup="dialog" hidden><span aria-hidden="true">↗</span></button>
+          </div>
+          <div class="tee-caption"><h3>Studio Tee</h3><span class="tee-tone tone-black"><i aria-hidden="true"></i>Ink Black</span></div>
+        </article>
+        <article class="tee-card">
+          <div class="tee-photo">
+            <img src="/assets/shop/chalk.webp" alt="DVN Studio Tee · Chalk" width="720" height="720" decoding="async">
+            <button type="button" class="tee-hit" data-open-tee="chalk" aria-label="Studio Tee · Chalk" aria-haspopup="dialog" hidden><span aria-hidden="true">↗</span></button>
+          </div>
+          <div class="tee-caption"><h3>Studio Tee</h3><span class="tee-tone tone-chalk"><i aria-hidden="true"></i>Chalk</span></div>
+        </article>
+        <article class="tee-card">
+          <div class="tee-photo">
+            <img src="/assets/shop/slate.webp" alt="DVN Studio Tee · Slate" width="720" height="720" decoding="async">
+            <button type="button" class="tee-hit" data-open-tee="slate" aria-label="Studio Tee · Slate" aria-haspopup="dialog" hidden><span aria-hidden="true">↗</span></button>
+          </div>
+          <div class="tee-caption"><h3>Studio Tee</h3><span class="tee-tone tone-slate"><i aria-hidden="true"></i>Slate</span></div>
+        </article>
+      </div>
+    </section>
+    <section id="launch" class="rv-countdown" aria-labelledby="countdown-title">
     <div class="rv-countdown-inner">
-      <p data-i18n="home.kicker" class="rv-countdown-kicker">Vorfreude steht dir gut</p>
-      <h1 data-i18n="home.title" id="countdown-title">dvnclothing.com ist bald für dich da.</h1>
+      <h2 data-i18n="campaign.release" id="countdown-title">Der erste Drop</h2>
       <p class="rv-countdown-date"><time data-launch-date datetime="2026-12-06T00:00:00+01:00">Sonntag, 6. Dezember 2026</time></p>
       <div class="rv-countdown-clock" role="timer" aria-live="off" aria-label="Countdown bis zum 6. Dezember 2026">
         <div class="rv-countdown-unit rv-countdown-days">
@@ -59,29 +106,55 @@
       <p data-i18n="home.complete" class="launch-status" id="launch-status" role="status" hidden>Unser Launch-Zeitpunkt ist erreicht. Weitere Informationen folgen hier.</p>
       <noscript><p class="no-script">Für den aktuellen Countdown bitte JavaScript aktivieren.</p></noscript>
     </div>
+    </section>
   </main>
-  <footer class="site-footer">
-    <div class="footer-grid">
-      <div class="footer-brand">
-        <a class="footer-wordmark" href="/" data-i18n-aria="nav.home" aria-label="DVN CLOTHING – Startseite"><img src="/assets/dvn-wordmark.png" alt="DVN CLOTHING" width="1038" height="453" loading="lazy"></a>
-        <p data-i18n="footer.intro">Ein neuer Look. Ein neues Kapitel. Bald bei DVN CLOTHING.</p>
-      </div>
-      <nav class="footer-nav" aria-labelledby="footer-info-title">
-        <h2 data-i18n="footer.info" id="footer-info-title">Informationen</h2>
+  <dialog id="tee-detail" class="tee-dialog" aria-labelledby="tee-dialog-title">
+    <div class="tee-detail-layout">
+      <div class="tee-detail-photo"><img id="tee-detail-img" alt=""></div>
+      <form class="tee-detail-info" id="tee-form">
+        <button type="button" class="tee-dismiss" data-dismiss data-shop-label="close" aria-label="Schließen">×</button>
+        <p class="tee-overline">DVN Clothing</p><h2 id="tee-dialog-title">Studio Tee</h2>
+        <p class="tee-description">Ein lässiges T-Shirt mit Rundhals und weitem Schnitt. Entdecke den Entwurf in drei Farben.</p>
+        <fieldset><legend><span data-shop-copy="color">Farbe</span> · <b id="tee-current-color"></b></legend><div id="tee-colors" class="tee-colors"></div></fieldset>
+        <fieldset><legend data-shop-copy="size">Größe</legend><div id="tee-sizes" class="tee-sizes"></div></fieldset>
+        <button class="tee-primary" type="submit" data-shop-copy="add">In den Warenkorb</button>
+        <p class="tee-note" data-shop-copy="note">Shop-Vorschau. Preise folgen zum Launch.</p>
+      </form>
+    </div>
+  </dialog>
+  <dialog id="tee-bag" class="tee-dialog tee-bag" aria-labelledby="tee-bag-title">
+    <div class="tee-bag-head"><h2 id="tee-bag-title" data-shop-copy="bag">Warenkorb</h2><button type="button" class="tee-dismiss" data-dismiss data-shop-label="close" aria-label="Schließen">×</button></div>
+    <div id="tee-bag-lines"></div>
+    <p class="tee-note" data-shop-copy="saved">Deine Auswahl bleibt auf diesem Gerät gespeichert. Bestellungen sind zum Launch geplant.</p>
+    <button type="button" class="tee-primary" data-dismiss data-shop-copy="browse">Kollektion ansehen</button>
+  </dialog>
+  <footer class="site-footer studio-footer">
+    <div class="studio-footer__grid">
+      <a class="studio-footer__signature" href="/" data-i18n-aria="nav.home" aria-label="DVN CLOTHING – Startseite">
+        <img src="/assets/dvn-wordmark.png" alt="DVN Clothing" width="1038" height="453" loading="lazy" decoding="async">
+      </a>
+      <nav class="studio-footer__group" aria-labelledby="footer-shop-title">
+        <h2 id="footer-shop-title">Shop</h2>
+        <a data-i18n="footer.collection" href="/#collection">T-Shirts</a>
+        <a data-i18n="footer.release" href="/#launch">Launch-Termin</a>
+      </nav>
+      <nav class="studio-footer__group" aria-labelledby="footer-info-title">
+        <h2 id="footer-info-title" data-i18n="footer.legal">Rechtliches</h2>
         <a data-i18n="footer.imprint" href="/impressum.html">Impressum</a>
         <a data-i18n="footer.terms" href="/terms.html">Nutzungsbedingungen</a>
       </nav>
-      <div class="footer-service">
-        <h2 data-i18n="footer.service">Kontakt &amp; Service</h2>
-        <p data-i18n="footer.noParcels">Keine Paketannahme vor Ort.</p>
+      <section class="studio-footer__group studio-footer__service" aria-labelledby="footer-service-title">
+        <h2 id="footer-service-title" data-i18n="footer.service">Kontakt &amp; Service</h2>
+        <a class="studio-footer__email" href="mailto:service@dvnclothing.com">service@dvnclothing.com</a>
         <p data-i18n="footer.noCalls">Kein telefonischer Support.</p>
-        <a class="footer-email" href="mailto:service@dvnclothing.com">service@dvnclothing.com</a><br>
-        <a data-i18n="footer.contact" href="/impressum.html#kontakt">Kontaktangaben im Impressum</a>
-      </div>
+        <p data-i18n="footer.noParcels">Keine Paketannahme vor Ort.</p>
+      </section>
     </div>
-    <div class="footer-bottom">
-      <span>© 2026 DVN CLOTHING</span>
-      <span data-i18n="footer.rights">Alle Rechte vorbehalten.</span>
+    <div class="studio-footer__colophon">
+      <small>© 2026 DVN CLOTHING</small>
+      <a href="#top" class="studio-footer__top">
+        <span data-i18n="footer.top">Nach oben</span><span aria-hidden="true">↑</span>
+      </a>
     </div>
   </footer>
 </body>
