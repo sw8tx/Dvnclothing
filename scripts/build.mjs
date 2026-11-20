@@ -24,22 +24,24 @@ await mkdir(output, { recursive: true });
 for (const file of [...pages, 'styles.css', 'hero.css', 'footer.css', 'legal.css', 'shop.css', 'shop.js', 'countdown.js', 'translations.js', 'i18n.js', 'auth.js', 'assets', '_headers']) {
   await cp(path.join(root, file), path.join(output, file), { recursive: true });
 }
-// Publish the dictionary and renderer under content-based URLs so cached versions cannot mix.
-const scripts = new Map();
-for (const name of ['translations', 'i18n', 'auth', 'shop']) {
-  const bytes = await readFile(path.join(root, name + '.js'));
+// Use content-based URLs for styles and client code so each release loads matching assets.
+const stylesheets = Array.from(html.matchAll(/\bhref="(\/(?!\/)[^"?#]+\.css)(?:[?#][^"]*)?"/g), match => match[1]);
+const versionedAssets = new Map();
+for (const source of new Set([...stylesheets, '/translations.js', '/i18n.js', '/auth.js', '/shop.js'])) {
+  const bytes = await readFile(path.join(root, source));
   const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
-  const versioned = name + '.' + hash + '.js';
-  await writeFile(path.join(output, versioned), bytes);
-  scripts.set('/' + name + '.js', '/' + versioned);
+  const extension = path.extname(source);
+  const versioned = source.slice(0, -extension.length) + '.' + hash + extension;
+  const destination = path.join(output, versioned);
+  await mkdir(path.dirname(destination), { recursive: true });
+  await writeFile(destination, bytes);
+  versionedAssets.set(source, versioned);
 }
 for (const page of pages) {
   const dest = path.join(output, page);
-  let markup = await readFile(dest, 'utf8');
-  for (const [source, versioned] of scripts) {
-    markup = markup.replace('src="' + source + '?v=account3"', 'src="' + versioned + '"')
-      .replace('src="' + source + '"', 'src="' + versioned + '"');
-  }
-  await writeFile(dest, markup);
+  const markup = await readFile(dest, 'utf8');
+  const rewritten = markup.replace(/\b(href|src)="(\/(?!\/)[^"?#]+)(?:[?#][^"]*)?"/g, (original, attribute, source) =>
+    versionedAssets.has(source) ? attribute + '="' + versionedAssets.get(source) + '"' : original);
+  await writeFile(dest, rewritten);
 }
 console.log('Cloudflare Pages output ready in dist/');
