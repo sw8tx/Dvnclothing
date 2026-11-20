@@ -48,3 +48,15 @@
   .footer-directory a { overflow-wrap: anywhere; }
   .footer-identity { grid-column: 1; grid-row: 1; margin: 0; }
 }
+
+/* Legal links below the social directory. */
+.footer-base { background: #fff; color: #555; }
+.footer-fine { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 28px; }
+.footer-fine small { order: -1; margin: 0; font-size: 13px; }
+.footer-fine nav { gap: 4px 24px; }
+.footer-fine a { text-decoration: none; }
+.footer-fine a:hover, .footer-fine a:focus-visible { text-decoration: underline; }
+@media(max-width: 620px) {
+  .footer-fine { display: grid; gap: 10px; }
+  .footer-fine small { order: 1; }
+}

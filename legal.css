@@ -1,0 +1,26 @@
+.legal-main {
+  box-sizing: border-box;
+  width: min(100% - 40px, 800px);
+  margin: 0 auto;
+  padding: clamp(24px,4vw,56px) 0 clamp(64px,8vw,112px);
+  color: #181818;
+  font-family: "Manrope Variable", Arial, sans-serif;
+}
+.legal-main a { color: inherit; text-underline-offset: .22em; }
+.legal-main .back-link { font-size: 13px; color: #575757; }
+.legal-heading { margin: clamp(28px,5vw,60px) 0 32px; }
+.legal-heading h1 { margin: 0; font-size: clamp(26px,5.5vw,58px); line-height: 1.13; font-weight: 600; letter-spacing: -.045em; overflow-wrap: anywhere; }
+.legal-intro { max-width: 58ch; margin: 16px 0 0; font-size: 17px; color: #494949; line-height: 1.6; }
+.legal-meta { margin: 16px 0 0; color: #686868; font-size: 13px; }
+.legal-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 36px; }
+.legal-card, .legal-section {
+  background: #fff; padding: 27px 0; max-width: none; margin: 0;
+  border: none; border-top: 1px solid #dedede; border-radius: 0;
+}
+.legal-main h2 { margin: 0 0 14px; font-size: 21px; font-weight: 650; line-height: 1.35; letter-spacing: -.025em; }
+.legal-section p { max-width: 66ch; margin: 0 0 10px; font-size: 16px; line-height: 1.75; color: #444; }
+.contact-list { margin: 0; }
+.contact-list dt { margin: 20px 0 2px; font-size: 13px; color: #606060; }
+.contact-list dd { margin: 0; font-size: 16px; line-height: 1.65; overflow-wrap: anywhere; }
+.contact-list address { font-style: normal; }
+@media(max-width: 620px) { .legal-grid { grid-template-columns: 1fr; gap: 0; } }
