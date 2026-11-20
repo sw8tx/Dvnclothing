@@ -1,7 +1,8 @@
 (() => {
   'use strict';
 
-  const target = Date.parse('2026-12-06T00:00:00+01:00');
+  const launchDate = document.querySelector('.rv-countdown-date time');
+  const target = Date.parse(launchDate?.dateTime);
   const units = [
     { id: 'days', singular: 'Tag', plural: 'Tage' },
     { id: 'hours', singular: 'Stunde', plural: 'Stunden' },
@@ -10,6 +11,11 @@
   ];
   const fields = units.map(({ id }) => document.getElementById(id));
   const timer = document.querySelector('.rv-countdown-clock');
+  const status = document.getElementById('launch-status');
+  if (!Number.isFinite(target) || !timer || fields.some((field) => !field)) return;
+
+  const launchLabel = launchDate.textContent.trim();
+  let interval;
 
   function renderDigits(field, value) {
     // Preserve unchanged spans so only changed digits replay the CSS flip.
@@ -28,7 +34,9 @@
   }
 
   function update() {
-    let remaining = Math.max(0, target - Date.now());
+    // Round up so zero is shown only once the launch time has actually arrived.
+    const difference = target - Date.now();
+    let remaining = Math.ceil(Math.max(0, difference) / 1000) * 1000;
     const days = Math.floor(remaining / 86400000);
     remaining %= 86400000;
     const hours = Math.floor(remaining / 3600000);
@@ -47,12 +55,20 @@
       field.setAttribute('aria-label', description);
       descriptions.push(description);
     });
-    timer.setAttribute('aria-label', `Countdown bis zum 6. Dezember 2026: ${descriptions.join(', ')}`);
+    timer.setAttribute('aria-label', difference > 0
+      ? `Countdown bis ${launchLabel}: ${descriptions.join(', ')}`
+      : 'Launch-Zeitpunkt erreicht');
+    if (difference <= 0) {
+      if (status) status.hidden = false;
+      if (interval !== undefined) clearInterval(interval);
+      return false;
+    }
+    if (status) status.hidden = true;
+    return true;
   }
 
-  update();
   // Read the actual clock each time; no drift after delayed or suspended ticks.
-  setInterval(update, 250);
+  if (update()) interval = setInterval(update, 250);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) update();
   });
