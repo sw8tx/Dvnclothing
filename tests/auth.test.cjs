@@ -33,7 +33,7 @@ test('sessions reject tampering and logout requires the site origin', async () =
   const { seal, unseal } = await import('../functions/api/auth/_lib.js');
   const { onRequestGet: session } = await import('../functions/api/auth/session.js');
   const { onRequestPost: logout } = await import('../functions/api/auth/logout.js');
-  const token = await seal({ exp: Math.floor(Date.now() / 1000) + 120, name: 'Taylor', email: 'taylor@example.com' }, env.AUTH_COOKIE_SECRET);
+  const token = await seal({ exp: Math.floor(Date.now() / 1000) + 120, sub: 'test-taylor-google-id', name: 'Taylor', email: 'taylor@example.com' }, env.AUTH_COOKIE_SECRET);
   assert.equal((await unseal(token, env.AUTH_COOKIE_SECRET)).name, 'Taylor');
   assert.equal(await unseal(token + 'tampered', env.AUTH_COOKIE_SECRET), null);
   const response = await session({ request: new Request('https://dvnclothing.com/api/auth/session', { headers: { Cookie: `__Host-dvn-session=${token}` } }), env });
@@ -99,5 +99,12 @@ test('a verified Google callback exchanges the code and creates a usable session
   const currentSession = await session({ request: new Request(site + '/api/auth/session', {
     headers: { Cookie: sessionCookie.split(';')[0] },
   }), env });
-  assert.deepEqual(await currentSession.json(), { configured: true, user: profile });
+  const result = await currentSession.json();
+  assert.equal(result.configured, true);
+  assert.equal(result.emailConfigured, false);
+  assert.equal(result.profileConfigured, false);
+  const { id, provider, ...user } = result.user;
+  assert.match(id, /^[0-9a-f]{64}$/);
+  assert.equal(provider, 'google');
+  assert.deepEqual(user, profile);
 });

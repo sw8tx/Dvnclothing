@@ -11,7 +11,7 @@
       slate: 'Ein schiefergraues T-Shirt mit kleinem weißen DVN-Schriftzug auf der linken Brust und locker fallenden Ärmeln.',
       color: 'Farbe', size: 'Größe', add: 'In den Warenkorb', close: 'Schließen',
       note: 'Shop-Vorschau. Preise folgen zum Launch.', empty: 'Dein Warenkorb ist leer.',
-      saved: 'Deine Auswahl bleibt auf diesem Gerät gespeichert. Bestellungen sind zum Launch geplant.',
+      saved: 'Deine Auswahl wird für dein Konto in diesem Browser gespeichert. Bestellungen sind zum Launch geplant.',
       temporary: 'Deine Auswahl bleibt bis zum Schließen dieser Seite erhalten.',
       remove: 'Entfernen', more: 'Menge erhöhen', less: 'Menge verringern', browse: 'Kollektion ansehen'
     },
@@ -22,18 +22,53 @@
       slate: 'A slate-grey tee with a small white DVN wordmark on the left chest and relaxed sleeves.',
       color: 'Colour', size: 'Size', add: 'Add to bag', close: 'Close',
       note: 'Shop preview. Prices will be available at launch.', empty: 'Your bag is empty.',
-      saved: 'Your selection is saved on this device. Ordering is planned for launch.',
+      saved: 'Your selection is saved for your account in this browser. Ordering is planned for launch.',
       temporary: 'Your selection will last until you close this page.',
       remove: 'Remove', more: 'Increase quantity', less: 'Decrease quantity', browse: 'View collection'
     }
   };
-  const bagKey = 'dvn-studio-bag-v1';
+  // Anonymous v1 bags have no owner and must never be assigned to an account.
+  const bagPrefix = 'dvn-studio-bag-v2:';
   const detail = document.querySelector('#tee-detail');
   const bag = document.querySelector('#tee-bag');
   const form = document.querySelector('#tee-form');
   const bagLines = document.querySelector('#tee-bag-lines');
   let canSave = true;
-  let selection = readSelection();
+  let selection = [];
+  let owner = null;
+  let identityVersion = 0;
+  let verifying = false;
+
+  function storageKey() {
+    return owner ? bagPrefix + encodeURIComponent(owner) : null;
+  }
+
+  function switchAccount(user) {
+    const id = typeof user?.id === 'string' && user.id ? user.id : null;
+    if (id === owner) return;
+    owner = id;
+    identityVersion++;
+    canSave = true;
+    if (bag.open) bag.close();
+    selection = owner ? readSelection() : [];
+    updateBag();
+  }
+
+  async function allowBagAction() {
+    if (verifying) return false;
+    verifying = true;
+    const previousOwner = owner;
+    const previousVersion = identityVersion;
+    try {
+      if (!await window.DVNAuth?.requireLogin?.()) return false;
+      // A verification started by one account must not mutate a newer account.
+      return Boolean(owner) && (!previousOwner || previousVersion === identityVersion);
+    } catch {
+      return false;
+    } finally {
+      verifying = false;
+    }
+  }
 
   function words() {
     return copy[document.documentElement.lang] || copy.de;
@@ -41,7 +76,7 @@
 
   function readSelection() {
     try {
-      const stored = JSON.parse(localStorage.getItem(bagKey) || '[]');
+      const stored = JSON.parse(localStorage.getItem(storageKey()) || '[]');
       if (!Array.isArray(stored)) return [];
       const unique = new Map();
       for (const line of stored) {
@@ -57,8 +92,9 @@
   }
 
   function save() {
+    if (!owner) return;
     try {
-      localStorage.setItem(bagKey, JSON.stringify(selection));
+      localStorage.setItem(storageKey(), JSON.stringify(selection));
     } catch {
       canSave = false;
     }
@@ -153,17 +189,18 @@
     document.querySelectorAll('[data-bag-count]').forEach((el) => { el.textContent = String(count); });
     const rows = selection.map(renderLine);
     bagLines.replaceChildren(...(rows.length ? rows : [node('p', 'tee-empty', words().empty)]));
-    if (!canSave) bag.querySelector('[data-shop-copy="saved"]').textContent = words().temporary;
+    bag.querySelector('[data-shop-copy="saved"]').textContent = canSave ? words().saved : words().temporary;
   }
 
   radioGroup(form.querySelector('#tee-colors'), 'tone', Object.entries(tones), true);
   radioGroup(form.querySelector('#tee-sizes'), 'size', sizes.map((size) => [size, size]));
   form.addEventListener('change', (event) => { if (event.target.name === 'tone') changeTone(); });
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const tone = form.elements.tone.value;
     const size = form.elements.size.value;
     if (!Object.hasOwn(tones, tone) || !sizes.includes(size)) return;
+    if (!await allowBagAction() || !detail.open) return;
     const line = selection.find((item) => item.tone === tone && item.size === size);
     if (line) line.qty = Math.min(99, line.qty + 1);
     else selection.push({ tone, size, qty: 1 });
@@ -178,15 +215,18 @@
   });
   document.querySelectorAll('[data-open-bag]').forEach((trigger) => {
     trigger.hidden = false;
-    trigger.addEventListener('click', () => bag.showModal());
+    trigger.addEventListener('click', async () => {
+      if (await allowBagAction() && !bag.open) bag.showModal();
+    });
   });
   document.querySelectorAll('.tee-dialog [data-dismiss]').forEach((button) => {
     button.addEventListener('click', () => button.closest('dialog').close());
   });
-  bagLines.addEventListener('click', (event) => {
+  bagLines.addEventListener('click', async (event) => {
     const button = event.target.closest('button[data-bag-action]');
     if (!button) return;
     const row = button.closest('.tee-bag-line');
+    if (!await allowBagAction() || !bag.open) return;
     const item = selection.find((line) => line.tone === row.dataset.tone && line.size === row.dataset.size);
     if (!item) return;
     const action = button.dataset.bagAction;
@@ -199,11 +239,13 @@
     next.focus();
   });
   window.addEventListener('storage', (event) => {
-    if (event.key === bagKey || event.key === null) {
+    if (owner && (event.key === storageKey() || event.key === null)) {
       selection = readSelection();
       updateBag();
     }
   });
+  document.addEventListener('dvn:authchange', (event) => switchAccount(event.detail?.user));
+  switchAccount(window.DVNAuth?.user);
   document.addEventListener('dvn:languagechange', setLanguage);
   setLanguage();
 })();

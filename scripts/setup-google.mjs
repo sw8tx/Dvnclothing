@@ -57,15 +57,15 @@ async function setup() {
   if (!existing.includes('environment of your Pages project') || !existing.includes(project)) {
     throw Error('Der Produktionsstatus ließ sich nicht eindeutig prüfen. Es wurde nichts geschrieben.');
   }
-  if (/\b(?:GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET|AUTH_COOKIE_SECRET)\b/.test(existing)) {
+  if (/\b(?:GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET)\b/.test(existing)) {
     throw Error('Es existieren bereits Login-Secrets. Diese Ersteinrichtung überschreibt sie nicht. Prüfe die vorhandenen Bindungen in Cloudflare Pages.');
   }
   pagesSecret('bulk', JSON.stringify({
     GOOGLE_CLIENT_ID: client.client_id,
     GOOGLE_CLIENT_SECRET: client.client_secret,
-    AUTH_COOKIE_SECRET: randomBytes(48).toString('base64url'),
+    ...(/\bAUTH_COOKIE_SECRET\b/.test(existing) ? {} : { AUTH_COOKIE_SECRET: randomBytes(48).toString('base64url') }),
   }));
-  console.log('Die drei Secrets sind in Cloudflare Pages gespeichert. Starte jetzt den letzten Produktionsbuild erneut und prüfe /api/auth/session.');
+  console.log('Die Google-Zugangsdaten sind in Cloudflare Pages gespeichert. Starte jetzt den letzten Produktionsbuild erneut und prüfe /api/auth/session.');
 }
 
 setup().catch(error => {

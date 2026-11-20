@@ -26,7 +26,7 @@ for (const file of [...pages, 'styles.css', 'hero.css', 'footer.css', 'legal.css
 }
 // Publish the dictionary and renderer under content-based URLs so cached versions cannot mix.
 const scripts = new Map();
-for (const name of ['translations', 'i18n']) {
+for (const name of ['translations', 'i18n', 'auth', 'shop']) {
   const bytes = await readFile(path.join(root, name + '.js'));
   const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
   const versioned = name + '.' + hash + '.js';
@@ -37,7 +37,8 @@ for (const page of pages) {
   const dest = path.join(output, page);
   let markup = await readFile(dest, 'utf8');
   for (const [source, versioned] of scripts) {
-    markup = markup.replace('src="' + source + '"', 'src="' + versioned + '"');
+    markup = markup.replace('src="' + source + '?v=account3"', 'src="' + versioned + '"')
+      .replace('src="' + source + '"', 'src="' + versioned + '"');
   }
   await writeFile(dest, markup);
 }

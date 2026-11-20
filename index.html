@@ -13,14 +13,14 @@
   <title data-i18n="page.home">First Cut · T-Shirts | DVN CLOTHING</title>
   <link rel="preload" href="/assets/fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="/hero.css">
+  <link rel="stylesheet" href="/hero.css?v=account3">
   <link rel="stylesheet" href="/footer.css?v=legal2">
   <link rel="stylesheet" href="/shop.css">
   <script src="/translations.js" defer></script>
   <script src="/i18n.js" defer></script>
-  <script src="/auth.js" defer></script>
+  <script src="/auth.js?v=account3" defer></script>
   <script src="/countdown.js" defer></script>
-  <script src="/shop.js" defer></script>
+  <script src="/shop.js?v=account3" defer></script>
 </head>
 <body id="top" class="rv-home">
   <header class="site-header">
@@ -30,9 +30,10 @@
       <a class="header-launch" href="#launch" data-i18n="masthead.release">Launch</a>
     </nav>
     <div class="header-actions">
-      <button class="account-trigger" type="button" data-google-auth aria-label="Mein Konto" aria-haspopup="dialog" aria-controls="account-dialog">
+      <button class="account-trigger" type="button" data-google-auth aria-label="Anmelden" aria-haspopup="dialog" aria-controls="account-dialog">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 21v-2a7.5 7.5 0 0 1 15 0v2"/></svg>
-        <span data-account-label>Konto</span>
+        <span class="account-avatar" data-header-avatar aria-hidden="true" hidden></span>
+        <span data-account-label>Anmelden</span>
       </button>
       <a class="admin-link" href="https://dash.cloudflare.com/?to=/19c22c3dff85cd28e6351907c5e70b9a/pages/view/dvnclothing" target="_blank" rel="noopener noreferrer" data-i18n="nav.admin" data-i18n-aria="nav.adminLabel" aria-label="Admin Login – Cloudflare-Verwaltung in neuem Tab öffnen">Admin Login</a>
       <details class="language-menu" hidden>
@@ -131,7 +132,7 @@
   <dialog id="tee-bag" class="tee-dialog tee-bag" aria-labelledby="tee-bag-title">
     <div class="tee-bag-head"><h2 id="tee-bag-title" data-shop-copy="bag">Warenkorb</h2><button type="button" class="tee-dismiss" data-dismiss data-shop-label="close" aria-label="Schließen">×</button></div>
     <div id="tee-bag-lines"></div>
-    <p class="tee-note" data-shop-copy="saved">Deine Auswahl bleibt auf diesem Gerät gespeichert. Bestellungen sind zum Launch geplant.</p>
+    <p class="tee-note" data-shop-copy="saved">Deine Auswahl wird für dein Konto in diesem Browser gespeichert. Bestellungen sind zum Launch geplant.</p>
     <button type="button" class="tee-primary" data-dismiss data-shop-copy="browse">Kollektion ansehen</button>
   </dialog>
   <footer class="dvn-footer" id="footer">
@@ -169,17 +170,51 @@
   <dialog class="account-dialog" id="account-dialog" aria-labelledby="account-title" aria-describedby="account-summary">
     <div class="account-top">
       <img src="/assets/dvn-wordmark.png" width="1038" height="453" alt="DVN CLOTHING">
-      <button type="button" class="account-close" data-account-close aria-label="Schließen" autofocus>×</button>
+      <button type="button" class="account-close" data-account-close aria-label="Schließen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg></button>
     </div>
     <div class="account-body">
-      <h2 id="account-title">Mein Konto</h2>
-      <p id="account-summary" aria-live="polite">Dein Anmeldestatus wird geladen.</p>
-      <p class="account-identity" data-account-identity hidden><strong data-account-name></strong><span data-account-email></span></p>
-      <p class="account-error" data-account-error role="alert" hidden></p>
-      <a class="account-primary" data-account-start hidden>Mit Google anmelden</a>
-      <button class="account-secondary" type="button" data-account-retry hidden>Erneut versuchen</button>
-      <button class="account-secondary" type="button" data-account-logout hidden>Abmelden</button>
-      <a class="account-contact" data-account-contact href="mailto:service@dvnclothing.com" hidden>service@dvnclothing.com</a>
+      <p class="account-eyebrow" data-account-copy="eyebrow">DVN Konto</p>
+      <h2 id="account-title" tabindex="-1">Willkommen zurück</h2>
+      <p id="account-summary">Dein Anmeldestatus wird geladen.</p>
+      <p class="account-alert" data-account-error role="alert" hidden></p>
+      <p class="account-confirmation" data-account-feedback role="status" hidden></p>
+      <div data-account-guest hidden>
+        <a class="account-google" data-account-start>
+          <svg width="19" height="19" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11c-.5 2.5-1.9 4.6-4.1 6v5h6.7c3.9-3.6 6-8.6 6-14.7Z"/><path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.6-4.9l-6.7-5c-1.9 1.2-4.2 1.9-6.9 1.9-5.3 0-9.8-3.6-11.4-8.4H5.7v5.2A20.3 20.3 0 0 0 24 44Z"/><path fill="#FBBC05" d="M12.6 27.6a12 12 0 0 1 0-7.2v-5.2H5.7a20.4 20.4 0 0 0 0 17.6l6.9-5.2Z"/><path fill="#EA4335" d="M24 12c3 0 5.6 1 7.7 3l5.8-5.8A20 20 0 0 0 24 4a20.3 20.3 0 0 0-18.3 11.2l6.9 5.2A12.1 12.1 0 0 1 24 12Z"/></svg>
+          <span data-account-copy="google">Mit Google fortfahren</span>
+        </a>
+        <p class="account-method-note" data-google-pending data-account-copy="googlePending" hidden>Google-Anmeldung wird eingerichtet.</p>
+        <div class="account-divider"><span data-account-copy="or">oder</span></div>
+        <form data-account-email-form>
+          <label for="account-mail" data-account-copy="emailLabel">E-Mail-Adresse</label>
+          <input id="account-mail" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254" required placeholder="name@beispiel.de">
+          <button class="account-primary" type="submit" data-account-submit-email data-account-copy="send">Mit E-Mail fortfahren</button>
+          <p class="account-method-note" data-account-mail-hint>Wir senden dir einen einmaligen Anmeldecode.</p>
+        </form>
+      </div>
+      <form data-account-code-form hidden>
+        <label for="account-code" data-account-copy="codeLabel">Anmeldecode</label>
+        <input id="account-code" name="code" type="text" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required placeholder="000000">
+        <button type="submit" class="account-primary" data-account-verify data-account-copy="verify">Code bestätigen</button>
+        <div class="account-text-actions"><button type="button" data-account-resend>Code erneut senden</button><button type="button" data-account-back data-account-copy="changeEmail">E-Mail ändern</button></div>
+      </form>
+      <div data-account-member hidden>
+        <div class="account-identity"><span class="account-avatar" data-dialog-avatar aria-hidden="true"></span><div><strong data-account-name></strong><span data-account-email></span></div></div>
+        <button type="button" class="account-secondary" data-account-edit data-account-copy="edit">Profil bearbeiten</button>
+        <button type="button" class="account-text-button" data-account-logout data-account-copy="logout">Abmelden</button>
+      </div>
+      <form data-account-profile-form hidden>
+        <div class="account-photo-row"><span class="account-avatar" data-edit-avatar aria-hidden="true"></span><div>
+          <label class="account-upload" for="account-photo"><span data-account-copy="changePhoto">Foto auswählen</span>
+            <input id="account-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
+          <button type="button" class="account-text-button" data-remove-photo data-account-copy="removePhoto">Foto entfernen</button>
+        </div></div>
+        <label for="account-display-name" data-account-copy="nameLabel">Anzeigename</label>
+        <input id="account-display-name" type="text" autocomplete="nickname" maxlength="64" required>
+        <button type="submit" class="account-primary" data-account-save data-account-copy="save">Änderungen speichern</button>
+        <button type="button" class="account-text-button" data-account-cancel data-account-copy="cancel">Abbrechen</button>
+      </form>
+      <button class="account-secondary" type="button" data-account-retry data-account-copy="retry" hidden>Erneut prüfen</button>
     </div>
   </dialog>
 </body>
