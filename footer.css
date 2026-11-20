@@ -1,0 +1,50 @@
+.dvn-footer {
+  --gutter: clamp(18px, 4.5vw, 80px);
+  background: #050505;
+  color: #fff;
+  font: 400 15px/1.65 "Manrope Variable", Arial, sans-serif;
+  flex-shrink: 0;
+}
+.dvn-footer a { color: inherit; }
+.dvn-footer :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.footer-inner, .footer-base > div { max-width: 1520px; margin: auto; padding-inline: var(--gutter); }
+.footer-inner { padding-block: 26px 32px; }
+.footer-directory summary {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; min-height: 58px; cursor: pointer; list-style: none; font-size: 16px;
+}
+.footer-directory summary::-webkit-details-marker { display: none; }
+.footer-directory summary::after, .footer-up span {
+  content: ""; width: 10px; height: 10px; border: solid currentColor; border-width: 0 1.7px 1.7px 0; transform: rotate(45deg);
+}
+.footer-directory details[open] summary::after { transform: rotate(225deg); }
+.footer-directory details > div { display: grid; justify-items: start; gap: 4px; padding-bottom: 16px; }
+.footer-directory p { margin: 0; }
+.footer-directory details > div, .footer-identity p { color: #c6c6c6; }
+.footer-directory a { text-underline-offset: 4px; padding-block: 4px; }
+.footer-identity { margin-top: 45px; }
+.footer-mark, .footer-mark img { display: block; width: 64px; height: auto; }
+.footer-identity p { max-width: 49ch; margin: 19px 0; line-height: 1.85; }
+.footer-socials, .footer-languages, .footer-languages button { display: flex; align-items: center; }
+.footer-socials { gap: 4px; margin-left: -8px; }
+.footer-socials a { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; }
+.footer-socials a:hover { background: #292929; }
+.footer-languages { margin-top: 23px; gap: 8px; font-size: 13px; }
+.footer-languages > span { color: #bcbcbc; margin-right: 8px; }
+.footer-languages button { gap: 7px; min-height: 44px; padding: 5px 9px; color: #bbb; background: transparent; border: 0; border-bottom: 1px solid transparent; font: inherit; cursor: pointer; }
+.footer-languages button[aria-pressed="true"] { color: white; border-bottom-color: currentColor; }
+.footer-base { background: #f6f6f4; color: #151515; }
+.footer-base > div { padding-block: 28px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.footer-fine nav { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 14px; font-weight: 600; }
+.footer-fine a { text-underline-offset: 3px; padding-block: 5px; }
+.footer-fine small { display: block; margin-top: 14px; font-size: 12px; }
+.footer-up { flex: 0 0 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: #080808; }
+.footer-up span { color: white; transform: translateY(3px) rotate(225deg); }
+@media (min-width: 800px) {
+  .footer-inner { display: grid; grid-template-columns: minmax(210px, 1fr) minmax(0, 2fr); gap: clamp(32px, 5vw, 86px); padding-block: 60px; }
+  .footer-directory { grid-column: 2; grid-row: 1; display: grid; grid-template-columns: 1.45fr .9fr 1fr; gap: 24px; }
+  .footer-directory summary { align-items: baseline; min-height: 46px; font-weight: 650; }
+  .footer-directory summary::after { flex-shrink: 0; width: 7px; height: 7px; }
+  .footer-directory a { overflow-wrap: anywhere; }
+  .footer-identity { grid-column: 1; grid-row: 1; margin: 0; }
+}

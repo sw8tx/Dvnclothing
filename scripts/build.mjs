@@ -20,7 +20,7 @@ for (const [, reference] of references) {
 // Only publish the site files, never repository metadata or local tooling.
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
-for (const file of [...pages, 'styles.css', 'hero.css', 'shop.css', 'shop.js', 'countdown.js', 'translations.js', 'i18n.js', 'auth.js', 'assets', '_headers']) {
+for (const file of [...pages, 'styles.css', 'hero.css', 'footer.css', 'shop.css', 'shop.js', 'countdown.js', 'translations.js', 'i18n.js', 'auth.js', 'assets', '_headers']) {
   await cp(path.join(root, file), path.join(output, file), { recursive: true });
 }
 console.log('Cloudflare Pages output ready in dist/');

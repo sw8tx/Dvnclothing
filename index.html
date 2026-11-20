@@ -14,6 +14,7 @@
   <link rel="preload" href="/assets/fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/hero.css">
+  <link rel="stylesheet" href="/footer.css">
   <link rel="stylesheet" href="/shop.css">
   <script src="/translations.js" defer></script>
   <script src="/i18n.js" defer></script>
@@ -133,34 +134,37 @@
     <p class="tee-note" data-shop-copy="saved">Deine Auswahl bleibt auf diesem Gerät gespeichert. Bestellungen sind zum Launch geplant.</p>
     <button type="button" class="tee-primary" data-dismiss data-shop-copy="browse">Kollektion ansehen</button>
   </dialog>
-  <footer class="site-footer studio-footer">
-    <div class="studio-footer__grid">
-      <a class="studio-footer__signature" href="/" data-i18n-aria="nav.home" aria-label="DVN CLOTHING – Startseite">
-        <img src="/assets/dvn-wordmark.png" alt="DVN Clothing" width="1038" height="453" loading="lazy" decoding="async">
-      </a>
-      <nav class="studio-footer__group" aria-labelledby="footer-shop-title">
-        <h2 id="footer-shop-title">Shop</h2>
-        <a data-i18n="footer.collection" href="/#collection">T-Shirts</a>
-        <a data-i18n="footer.release" href="/#launch">Launch-Termin</a>
-      </nav>
-      <nav class="studio-footer__group" aria-labelledby="footer-info-title">
-        <h2 id="footer-info-title" data-i18n="footer.legal">Rechtliches</h2>
-        <a data-i18n="footer.imprint" href="/impressum.html">Impressum</a>
-        <a data-i18n="footer.terms" href="/terms.html">Nutzungsbedingungen</a>
-      </nav>
-      <section class="studio-footer__group studio-footer__service" aria-labelledby="footer-service-title">
-        <h2 id="footer-service-title" data-i18n="footer.service">Kontakt &amp; Service</h2>
-        <a class="studio-footer__email" href="mailto:service@dvnclothing.com">service@dvnclothing.com</a>
-        <p data-i18n="footer.noCalls">Kein telefonischer Support.</p>
-        <p data-i18n="footer.noParcels">Keine Paketannahme vor Ort.</p>
-      </section>
+  <footer class="dvn-footer" id="footer">
+    <div class="footer-inner">
+      <div class="footer-directory">
+        <details><summary data-i18n="footer.service">Kontakt &amp; Service</summary>
+          <div><a href="mailto:service@dvnclothing.com">service@dvnclothing.com</a><p data-i18n="footer.noCalls">Kein telefonischer Support.</p><p data-i18n="footer.noParcels">Keine Paketannahme vor Ort.</p></div>
+        </details>
+        <details><summary data-i18n="masthead.shop">Kollektion</summary>
+          <div><a href="/#collection" data-i18n="footer.collection">T-Shirts</a><a href="/#launch" data-i18n="footer.release">Launch-Termin</a></div>
+        </details>
+        <details><summary data-i18n="footer.legal">Rechtliches</summary>
+          <div><a href="/impressum.html" data-i18n="footer.imprint">Impressum</a><a href="/terms.html" data-i18n="footer.terms">Nutzungsbedingungen</a></div>
+        </details>
+      </div>
+      <div class="footer-identity">
+        <a class="footer-mark" href="/" data-i18n-aria="nav.home" aria-label="DVN CLOTHING – Startseite"><img src="/assets/dvn-logo-white.png" width="64" height="70" alt="DVN CLOTHING" loading="lazy"></a>
+        <p data-i18n="footer.studio">First Cut ist die erste T-Shirt-Kollektion von DVN CLOTHING. Auf unseren Kanälen zeigen wir dir die Shirts und teilen Neuigkeiten zum Drop.</p>
+        <nav class="footer-socials" aria-label="Social Media">
+            <a href="https://www.instagram.com/dvnclo.eu?fqnt=MW5ibWEybHh5MjBpOA==" aria-label="Instagram" target="_blank" rel="noopener noreferrer"><img src="/assets/social/instagram.svg" width="24" height="24" alt=""></a>
+            <a href="https://www.tiktok.com/@dvnclo.eu?_r=1&amp;_t=ZG-9BZLK0kXUsy" aria-label="TikTok" target="_blank" rel="noopener noreferrer"><img src="/assets/social/tiktok.svg" width="24" height="24" alt=""></a>
+            <a href="https://chat.whatsapp.com/BcOFnKP5huL5hNQO1Z2eKr" aria-label="WhatsApp" target="_blank" rel="noopener noreferrer"><img src="/assets/social/whatsapp.svg" width="24" height="24" alt=""></a>
+        </nav>
+        <div class="footer-languages"><span data-i18n="nav.language">Sprache wählen</span>
+          <button type="button" data-language="de" lang="de" aria-label="Deutsch" aria-pressed="true"><svg class="flag" viewBox="0 0 30 20" aria-hidden="true" focusable="false"><path fill="#171717" d="M0 0h30v7H0z"/><path fill="#dc303b" d="M0 7h30v6H0z"/><path fill="#ffce45" d="M0 13h30v7H0z"/></svg> DE</button>
+          <button type="button" data-language="en" lang="en" aria-label="English" aria-pressed="false"><svg class="flag" viewBox="0 0 30 20" aria-hidden="true" focusable="false"><path fill="#25457a" d="M0 0h30v20H0z"/><path stroke="#fff" stroke-width="5" d="m0 0 30 20M30 0 0 20"/><path stroke="#ce3345" stroke-width="2" d="m0 0 30 20M30 0 0 20"/><path stroke="#fff" stroke-width="7" d="M15 0v20M0 10h30"/><path stroke="#ce3345" stroke-width="4" d="M15 0v20M0 10h30"/></svg> EN</button>
+        </div>
+      </div>
     </div>
-    <div class="studio-footer__colophon">
-      <small>© 2026 DVN CLOTHING</small>
-      <a href="#top" class="studio-footer__top">
-        <span data-i18n="footer.top">Nach oben</span><span aria-hidden="true">↑</span>
-      </a>
-    </div>
+    <div class="footer-base"><div>
+      <div class="footer-fine"><nav aria-label="Legal"><a href="/impressum.html" data-i18n="footer.imprint">Impressum</a><a href="/terms.html" data-i18n="footer.terms">Nutzungsbedingungen</a></nav><small>© 2026 DVN CLOTHING</small></div>
+      <a class="footer-up" href="#top" data-i18n-aria="footer.top" aria-label="Nach oben"><span aria-hidden="true"></span></a>
+    </div></div>
   </footer>
   <dialog class="account-dialog" id="account-dialog" aria-labelledby="account-title" aria-describedby="account-summary">
     <div class="account-top">

@@ -4,6 +4,13 @@
   const supported = (value) => value === 'de' || value === 'en';
   const menu = document.querySelector('.language-menu');
   if (menu) menu.hidden = false;
+  const footerGroups = document.querySelectorAll('.footer-directory details');
+  if (footerGroups.length) {
+    const wide = matchMedia('(min-width: 800px)');
+    const updateGroups = () => footerGroups.forEach(group => { group.open = wide.matches; });
+    updateGroups();
+    wide.addEventListener('change', updateGroups);
+  }
   let language = 'de';
 
   function t(key, variables = {}) {
@@ -50,7 +57,7 @@
   document.querySelectorAll('[data-language]').forEach((button) => {
     button.addEventListener('click', () => {
       setLanguage(button.dataset.language);
-      menu?.querySelector('summary')?.focus();
+      if (!button.closest?.('.footer-languages')) menu?.querySelector('summary')?.focus();
     });
   });
   document.addEventListener('click', (event) => {
