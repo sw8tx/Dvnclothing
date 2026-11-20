@@ -24,6 +24,8 @@
       limit: 'Zu viele Versuche. Warte einen Moment und versuche es erneut.', sendError: 'Der Code konnte nicht versendet werden. Bitte versuche es erneut.',
       addressInvalid: 'Prüfe die Schreibweise deiner E-Mail-Adresse.',
       sendUnconfirmed: 'Wir konnten den Versand nicht bestätigen. Prüfe deine Verbindung und versuche es noch einmal.',
+      sendDbDaily: 'Das Tageslimit für die Anmeldung per E-Mail ist erreicht.',
+      googleInstead: 'Du kannst dich auch mit Google anmelden.',
       sendDbQuota: 'Die Anmeldung per E-Mail hat ihr technisches Limit erreicht. Bitte versuche es später noch einmal.',
       sendBusy: 'Der E-Mail-Versand ist gerade ausgelastet.',
       sendQuota: 'Das Versandlimit ist erreicht. Bitte versuche es später erneut.',
@@ -71,6 +73,8 @@
       limit: 'Too many attempts. Wait a moment and try again.', sendError: 'We couldn’t send your code. Please try again.',
       addressInvalid: 'Check the spelling of your email address.',
       sendUnconfirmed: 'We couldn’t confirm whether your code was sent. Check your connection and try again.',
+      sendDbDaily: 'Email sign-in has reached its daily limit.',
+      googleInstead: 'You can also sign in with Google.',
       sendDbQuota: 'Email sign-in has reached its service limit. Please try again later.',
       sendBusy: 'Email delivery is busy right now.',
       sendQuota: 'The email sending limit has been reached. Please try again later.',
@@ -289,6 +293,9 @@
       const time = new Intl.DateTimeFormat(language() === 'en' ? 'en-GB' : 'de-DE', { timeStyle: 'medium' }).format(sendRetryAt);
       alert.textContent += ' ' + t.nextTry.replace('{time}', time);
     }
+    if (page === 'guest' && session.configured && (error === 'sendDbQuota' || error === 'sendDbDaily')) {
+      alert.textContent += ' ' + t.googleInstead;
+    }
     const confirmation = find('[data-account-feedback]');
     confirmation.hidden = !feedback;
     confirmation.textContent = t[feedback] || '';
@@ -440,6 +447,7 @@
         else if (err.status === 401) error = 'expired';
         else if (err.status === 403) error = 'sendForbidden';
         else if (err.reason === 'delivery_quota') error = 'sendQuota';
+        else if (err.reason === 'store_daily_limit') error = 'sendDbDaily';
         else if (err.reason === 'store_quota') error = 'sendDbQuota';
         else if (err.reason === 'delivery_busy') error = 'sendBusy';
         else if (err.reason === 'delivery_unconfirmed') error = 'sendUnconfirmed';

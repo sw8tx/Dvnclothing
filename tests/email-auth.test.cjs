@@ -237,12 +237,16 @@ test('admission distinguishes exhausted D1 quota and uncertain D1 writes from lo
     if (!n++) throw Error('D1_ERROR', { cause: Error('daily D1 rows written limit, private context') });
     return [{ success: true }, { success: false, meta: { changes: 0 } }];
   });
-  for (const category of ['quota', 'unconfirmed_write']) {
+  for (const category of ['daily_quota', 'unconfirmed_write']) {
     const response = await request('start', { email: 'member@example.test' });
     assert.equal(response.status, 503);
-    assert.deepEqual(await response.json(), { error: category === 'quota' ? 'store_quota' : 'reservation_unconfirmed' });
+    assert.deepEqual(await response.json(), { error: category === 'daily_quota' ? 'store_daily_limit' : 'reservation_unconfirmed' });
     assert.equal(response.headers.get('Set-Cookie'), null);
     assert.deepEqual(log.mock.calls.at(-1).arguments, ['email_auth_start', { stage: 'reserve', category }]);
+    if (category === 'daily_quota') {
+      const reset = Math.floor(Date.now() / 1000) + Number(response.headers.get('Retry-After'));
+      assert.ok(reset % 86400 <= 1);
+    } else assert.equal(response.headers.get('Retry-After'), null);
   }
   assert.equal(messages.length, 0);
 });

@@ -157,9 +157,13 @@ export async function onRequestPost({ request, env }) {
     let category = 'internal';
     if (stage === 'reserve') {
       const messages = [error?.message, error?.cause?.message].join(' ');
-      category = /quota|daily.*limit|limit.*daily|free tier/i.test(messages) ? 'quota' : 'database';
+      if (/quota|daily.*limit|limit.*daily|free tier/i.test(messages)) {
+        category = /daily|per day|midnight/i.test(messages) ? 'daily_quota' : 'quota';
+      } else category = 'database';
     }
     console.warn('email_auth_start', { stage, category });
-    return failure(stage === 'reserve' ? (category === 'quota' ? 'store_quota' : 'store_unavailable') : 'unavailable', 503);
+    if (category === 'daily_quota') return failure('store_daily_limit', 503, 86400 - (Math.floor(Date.now() / 1000) % 86400));
+    if (category === 'quota') return failure('store_quota', 503);
+    return failure(stage === 'reserve' ? 'store_unavailable' : 'unavailable', 503);
   }
 }
