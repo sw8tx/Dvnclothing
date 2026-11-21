@@ -1,8 +1,8 @@
 # DVN CLOTHING
 
-**First Cut** ist die zweisprachige T-Shirt-Shop-Vorschau auf dvnclothing.com. Besucher können Musterteile ansehen, Varianten und Größen auswählen und ihre Auswahl im Browser speichern. Preise, Bestand, Bestellungen und Zahlungsabwicklung sind für einen späteren Verkaufsstart offen.
+**First Drop** ist die zweisprachige Shop-Vorschau auf dvnclothing.com. Öffentlich erscheint die Launch-Seite für den 6. Dezember 2026, 00:00 Uhr Europe/Berlin. Nach dem Vorschaupasswort stehen fünf echte DVN-Shirts mit Produktgalerien, Größen S/M/L, Favoriten, Warenkorb und Bestellübersicht zur Verfügung.
 
-Die Gestaltung und die [20 untersuchten Shop-Beispiele](design-references.md) sind im Repository dokumentiert. Produktmotive und Kampagnenbild liegen in `assets/shop/`. Die Kontaktadresse lautet `service@dvnclothing.com`.
+Der bestätigte Katalog liegt in `catalog.json`: vier Shirts zu 20 €, Define Your Vision zu 22 €, Deutschlandversand 4,90 € und 3–5 Werktage. Original-Produktbilder liegen in `assets/products/`, vier KI-generierte Stylingbilder in `assets/lookbook/`. Herkunft und Bildbearbeitung sind in [docs/asset-sources.md](docs/asset-sources.md) dokumentiert. Kontakt: `service@dvnclothing.com`.
 
 ## Lokal prüfen
 
@@ -12,10 +12,24 @@ Node.js 22 oder neuer reicht; es werden keine npm-Pakete benötigt.
 npm run check
 npm test
 npm run build
-python3 -m http.server 3000 --directory dist
+npm run dev -- --port 5173
 ```
 
-Anschließend `http://localhost:3000` öffnen. Der Countdown verwendet die absolute Berliner Launch-Zeit unabhängig von der Zeitzone des Geräts. Nach Ablauf zeigt er null und einen Hinweis an; er behauptet nicht, dass bereits ein Shop verfügbar ist.
+Anschließend `http://localhost:5173` öffnen. Der lokale Adapter verwendet einen temporären Sitzungsschlüssel, keine Produktions-Secrets und keine Kundendatenbank. Zum reinen Prüfen des Designs kann `DVN_VISUAL_QA=1 npm run dev` die isolierten Shop-Seiten ohne Anmeldung rendern; dieses Skript wird nicht auf Cloudflare bereitgestellt. Die Sicherheit des echten Vorschauzugangs wird separat in `tests/preview-gate.test.cjs` geprüft. Der Countdown verwendet die absolute Berliner Launch-Zeit unabhängig von der Zeitzone des Geräts und öffnet bei Ablauf nicht automatisch den Verkauf.
+
+## Vorschauzugang und Datenschutz
+
+Die Pages-Middleware schützt `/shop`, `/products/*`, `/checkout`, den Katalog und die zugehörigen Assets. Der Build bündelt Shop-HTML und Katalog in `functions/_private-pages.js`; in `dist/` liegt ausschließlich die öffentliche Launch-Seite als HTML-Fallback. So wird bei einem ausgefallenen Function-Kontingent kein privates Shop-HTML statisch ausgeliefert. Produktbilder liegen in `dist/` und sind bei normalem Function-Betrieb geschützt; für deren Schutz bei einem Plattform-Fail-open muss Cloudflare zusätzlich auf Fail closed stehen.
+
+Der Zugang nutzt `AUTH_COOKIE_SECRET` (mindestens 32 Zeichen) mit eigenem Signaturzweck, ein Secure/HttpOnly/SameSite-Cookie für zwölf Stunden und einen zeitlich begrenzten Schutz vor Fehlversuchen. Das Passwort liegt nicht im Browsercode. `PREVIEW_PASSWORD_SHA256` kann den serverseitigen Standardprüfwert ersetzen. Der Vorschauzugang verursacht keine D1-Abfragen und ist keine Kundenanmeldung.
+
+Gastwarenkörbe verwenden ausschließlich den Sitzungsspeicher des aktuellen Tabs. Angemeldete Warenkörbe bleiben je Kontokennung getrennt. Favoriten werden erst nach Zustimmung zu Komfortfunktionen dauerhaft gespeichert; die Entscheidung lässt sich im Footer ändern. Analyse- und Marketing-Skripte sowie Newsletter wurden nicht ergänzt.
+
+## Zahlungsstatus
+
+Gewählt sind PayPal Business und Stripe. Shop Pay ist nicht Bestandteil dieser Kombination. Die aktuelle Version ist eine Vorschau: Die Checkout-Endpunkte prüfen Ursprung, Kundenanmeldung, Artikel, Größen, Mengen und serverseitige Preise, geben aber ohne fertige Händleranbindung `checkout_not_ready` zurück. Es werden keine Bestellungen angelegt, Zahlungsdaten eingesammelt oder Beträge abgebucht. Der vorhandene Stripe-Testschlüssel für den Willkommensbonus aktiviert keine Zahlungen.
+
+Noch erforderlich sind die passenden Händlerzugänge, bestätigter Bestand je Größe, die vollständigen Verkaufs-/Widerrufsinformationen und die eigentliche Providerintegration mit verifizierten Webhooks, einmaliger Bestellerfassung und Zahlungsabgleich. Erst danach darf die serverseitige Verkaufssperre entfernt werden. Referenzen: [Stripe Checkout](https://docs.stripe.com/payments/checkout) und [PayPal Checkout](https://developer.paypal.com/docs/checkout/).
 
 ## Cloudflare Pages
 

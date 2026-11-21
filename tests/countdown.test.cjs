@@ -4,7 +4,7 @@ const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 
 const source = readFileSync(require.resolve('../countdown.js'), 'utf8');
-const html = readFileSync(require.resolve('../index.html'), 'utf8');
+const html = readFileSync(require.resolve('../launch.html'), 'utf8');
 const dateTime = html.match(/<time\b[^>]*\bdatetime="([^"]+)"/)[1];
 const target = Date.parse(dateTime);
 

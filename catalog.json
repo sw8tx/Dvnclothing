@@ -1,0 +1,144 @@
+{
+  "currency": "EUR",
+  "launchAt": "2026-12-06T00:00:00+01:00",
+  "shipping": {
+    "confirmed": true,
+    "countries": [
+      "DE"
+    ],
+    "priceCents": 490,
+    "deliveryDays": {
+      "min": 3,
+      "max": 5,
+      "unit": "business_day"
+    }
+  },
+  "products": [
+    {
+      "id": "blue-mirage-black",
+      "slug": "blue-mirage-black",
+      "name": "Blue Mirage Black Tee",
+      "priceCents": 2000,
+      "sizes": [
+        "S",
+        "M",
+        "L"
+      ],
+      "color": {
+        "de": "Schwarz / Blau",
+        "en": "Black / Blue"
+      },
+      "image": "/assets/products/blue-mirage-black.jpg",
+      "images": [
+        "/assets/products/blue-mirage-black.jpg"
+      ],
+      "description": {
+        "de": "Ein Blick, der bleibt. Das Augenmotiv trifft auf blaue DVN-Schriftzüge und einen schwarzen Hintergrund.",
+        "en": "A look that stays with you. An eyes graphic meets blue DVN lettering on a black tee."
+      },
+      "family": "mirage",
+      "inventoryVerified": false
+    },
+    {
+      "id": "blue-mirage-white",
+      "slug": "blue-mirage-white",
+      "name": "Blue Mirage Tee",
+      "priceCents": 2000,
+      "sizes": [
+        "S",
+        "M",
+        "L"
+      ],
+      "color": {
+        "de": "Weiß / Blau",
+        "en": "White / Blue"
+      },
+      "image": "/assets/products/blue-mirage-white.jpg",
+      "images": [
+        "/assets/products/blue-mirage-white.jpg"
+      ],
+      "description": {
+        "de": "Blue Mirage auf Weiß. Das markante Augenmotiv und die blauen Schriftzüge setzen den Kontrast.",
+        "en": "Blue Mirage in white. The striking eyes graphic and blue lettering create the contrast."
+      },
+      "family": "mirage",
+      "inventoryVerified": false
+    },
+    {
+      "id": "define-your-vision",
+      "slug": "define-your-vision",
+      "name": "Define Your Vision Tee",
+      "priceCents": 2200,
+      "sizes": [
+        "S",
+        "M",
+        "L"
+      ],
+      "color": {
+        "de": "Anthrazit",
+        "en": "Charcoal"
+      },
+      "image": "/assets/products/define-your-vision.jpg",
+      "images": [
+        "/assets/products/define-your-vision.jpg",
+        "/assets/products/define-your-vision-back.jpg"
+      ],
+      "description": {
+        "de": "Deine Perspektive. Dein Weg. Ein anthrazitfarbenes Tee mit reduzierter Typografie und unserem Statement: Define Your Vision.",
+        "en": "Your perspective. Your path. A charcoal tee with pared-back typography and our statement: Define Your Vision."
+      },
+      "family": "vision",
+      "inventoryVerified": false
+    },
+    {
+      "id": "blue-sunshine",
+      "slug": "blue-sunshine",
+      "name": "Blue Sunshine Tee",
+      "priceCents": 2000,
+      "sizes": [
+        "S",
+        "M",
+        "L"
+      ],
+      "color": {
+        "de": "Schwarz / Cyan",
+        "en": "Black / Cyan"
+      },
+      "image": "/assets/products/blue-sunshine.jpg",
+      "images": [
+        "/assets/products/blue-sunshine.jpg"
+      ],
+      "description": {
+        "de": "Klares Schwarz, leuchtendes Cyan. Die überlagerten DVN-Schriftzüge stehen im Mittelpunkt dieses Designs.",
+        "en": "Clean black. Bright cyan. Layered DVN lettering takes centre stage in this design."
+      },
+      "family": "sunshine",
+      "inventoryVerified": false
+    },
+    {
+      "id": "purple-sunshine",
+      "slug": "purple-sunshine",
+      "name": "Purple Sunshine Tee",
+      "priceCents": 2000,
+      "sizes": [
+        "S",
+        "M",
+        "L"
+      ],
+      "color": {
+        "de": "Weiß / Violett",
+        "en": "White / Purple"
+      },
+      "image": "/assets/products/purple-sunshine.jpg",
+      "images": [
+        "/assets/products/purple-sunshine.jpg"
+      ],
+      "description": {
+        "de": "Violett auf Weiß. Unser Sunshine-Motiv bringt den DVN-Schriftzug in einer ausdrucksstarken Farbkombination zusammen.",
+        "en": "Purple on white. Our Sunshine graphic brings the DVN wordmark together in an expressive colour combination."
+      },
+      "family": "sunshine",
+      "inventoryVerified": false
+    }
+  ]
+}

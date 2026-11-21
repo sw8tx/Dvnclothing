@@ -4,49 +4,49 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { writeMailViews } from './mail-views.mjs';
 
-const root = fileURLToPath(new URL('../', import.meta.url));
-const output = path.join(root, 'dist');
-const pages = ['index.html', 'impressum.html', 'terms.html', 'privacy.html'];
-const html = (await Promise.all(pages.map((file) => readFile(path.join(root, file), 'utf8')))).join('\n');
-const css = await readFile(path.join(root, 'styles.css'), 'utf8');
-const references = [
-  ...html.matchAll(/(?:src|href)="(\/[^"#?]*)"/g),
-  ...css.matchAll(/url\("(\/[^"#?]*)"\)/g),
-];
-for (const [, reference] of references) {
-  if (reference === '/') continue;
-  const asset = await stat(path.join(root, reference));
-  if (!asset.isFile()) throw new Error(`Missing file: ${reference}`);
+const root=fileURLToPath(new URL('../',import.meta.url));
+const output=path.join(root,'dist');
+const publicPages=['launch.html','impressum.html','terms.html','privacy.html'];
+const protectedPages={'/shop':'index.html','/product':'product.html','/checkout':'checkout.html'};
+const sourcePages=[...publicPages,...Object.values(protectedPages)];
+const documents=new Map(await Promise.all(sourcePages.map(async file=>[file,await readFile(path.join(root,file),'utf8')])));
+const styles=['styles.css','hero.css','footer.css','legal.css','shop.css','storefront.css','launch.css'];
+const scripts=['countdown.js','translations.js','i18n.js','auth.js','shop.js','storefront.js','store-cart.js','launch.js'];
+const catalog=JSON.parse(await readFile(path.join(root,'catalog.json'),'utf8'));
+for(const p of catalog.products){
+  if(!p.id||!Number.isSafeInteger(p.priceCents)||p.priceCents<=0||!p.sizes.length)throw new Error('Invalid catalog entry');
+  for(const file of p.images){if(!(await stat(path.join(root,file))).isFile())throw new Error('Missing product image');}
 }
-
-// Only publish the site files, never repository metadata or local tooling.
-await rm(output, { recursive: true, force: true });
-await mkdir(output, { recursive: true });
-for (const file of [...pages, 'styles.css', 'hero.css', 'footer.css', 'legal.css', 'shop.css', 'shop.js', 'countdown.js', 'translations.js', 'i18n.js', 'auth.js', 'assets', '_headers', '_routes.json']) {
-  await cp(path.join(root, file), path.join(output, file), { recursive: true });
+// Validate file references without confusing real application routes with files.
+for(const [page,html] of documents){
+  for(const [,url] of html.matchAll(/(?:src|href)="(\/(?!\/)[^"#?]*)"/g)){
+    if(!/\.[a-z0-9]+$/i.test(url))continue;
+    if(!(await stat(path.join(root,url))).isFile())throw new Error(`Missing reference in ${page}: ${url}`);
+  }
 }
-// Use content-based URLs for styles and client code so each release loads matching assets.
-const stylesheets = Array.from(html.matchAll(/\bhref="(\/(?!\/)[^"?#]+\.css)(?:[?#][^"]*)?"/g), match => match[1]);
-const versionedAssets = new Map();
-for (const source of new Set([...stylesheets, '/translations.js', '/i18n.js', '/auth.js', '/shop.js'])) {
-  const bytes = await readFile(path.join(root, source));
-  const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
-  const extension = path.extname(source);
-  const versioned = source.slice(0, -extension.length) + '.' + hash + extension;
-  const destination = path.join(output, versioned);
-  await mkdir(path.dirname(destination), { recursive: true });
-  await writeFile(destination, bytes);
-  // Keep the legal stylesheet available at its longstanding path. Its content
-  // version still changes on every edit, without risking a cached SPA fallback
-  // for a newly introduced filename during a deployment.
-  versionedAssets.set(source, source === '/legal.css' ? `${source}?v=${hash}` : versioned);
+await rm(output,{recursive:true,force:true});await mkdir(output,{recursive:true});
+for(const file of [...styles,...scripts,'assets','_headers'])await cp(path.join(root,file),path.join(output,file),{recursive:true});
+const versions=new Map();
+for(const file of [...styles,...scripts]){
+  const bytes=await readFile(path.join(root,file));const ext=path.extname(file);const hash=createHash('sha256').update(bytes).digest('hex').slice(0,16);
+  const version='/'+file.slice(0,-ext.length)+'.'+hash+ext;await writeFile(path.join(output,version),bytes);
+  versions.set('/'+file,version);
 }
-for (const page of pages) {
-  const dest = path.join(output, page);
-  const markup = await readFile(dest, 'utf8');
-  const rewritten = markup.replace(/\b(href|src)="(\/(?!\/)[^"?#]+)(?:[?#][^"]*)?"/g, (original, attribute, source) =>
-    versionedAssets.has(source) ? attribute + '="' + versionedAssets.get(source) + '"' : original);
-  await writeFile(dest, rewritten);
-}
+function rewrite(html){return html.replace(/\b(href|src)="(\/(?!\/)[^"?#]+)(?:[?#][^"]*)?"/g,(original,attribute,url)=>versions.has(url)?`${attribute}="${versions.get(url)}"`:original);}
+for(const page of publicPages)await writeFile(path.join(output,page),rewrite(documents.get(page)));
+// Cloudflare's static fallback must never contain the private shop, even when
+// Pages Functions fail open after their request allowance has been exhausted.
+await writeFile(path.join(output,'index.html'),rewrite(documents.get('launch.html')));
+const privatePages=Object.fromEntries(Object.entries(protectedPages).map(([route,page])=>[route,{body:rewrite(documents.get(page)),type:'text/html; charset=utf-8'}]));
+privatePages['/catalog.json']={body:JSON.stringify(catalog),type:'application/json; charset=utf-8'};
+await writeFile(path.join(root,'functions/_private-pages.js'),'// Generated by scripts/build.mjs. Never publish this module as a static asset.\nexport const privatePages = '+JSON.stringify(privatePages)+';\n');
+const routes=JSON.parse(await readFile(path.join(root,'_routes.json'),'utf8'));
+for(const source of [...routes.exclude])if(versions.has(source))routes.exclude.push(versions.get(source));
+routes.exclude=[...new Set(routes.exclude)];
+for(const route of routes.exclude){if(route.includes('*')||!(await stat(path.join(output,route))).isFile())throw new Error(`Unsafe route exclusion: ${route}`);}
+await writeFile(path.join(output,'_routes.json'),JSON.stringify(routes,null,2)+'\n');
 await writeMailViews(output);
-console.log('Cloudflare Pages output ready in dist/');
+for(const file of ['product.html','checkout.html','catalog.json','functions/_private-pages.js']){
+  try{await stat(path.join(output,file));throw new Error(`Private source leaked to dist: ${file}`);}catch(e){if(e.code!=='ENOENT')throw e;}
+}
+console.log('Build ready: public launch, bundled private shop, verified catalog and exact static routes.');

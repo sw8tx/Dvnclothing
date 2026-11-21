@@ -16,7 +16,7 @@ before(async () => {
   // Run the deploy build in isolation so a test cannot overwrite an existing build.
   workspace = mkdtempSync(path.join(tmpdir(), 'dvn-mail-test-'));
   const inputs = readdirSync(root).filter(name => /\.(?:html|css|js)$/.test(name) ||
-    ['_headers', '_redirects', '_routes.json', 'package.json', 'scripts', 'functions', 'assets'].includes(name));
+    ['_headers', '_redirects', '_routes.json', 'package.json', 'catalog.json', 'scripts', 'functions', 'assets'].includes(name));
   for (const input of inputs) cpSync(path.join(root, input), path.join(workspace, input), { recursive: true });
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: workspace, stdio: 'pipe' });
   build = path.join(workspace, 'dist');
@@ -106,3 +106,16 @@ for (const variant of cases) {
     });
   }
 }
+
+test('published static fallback contains only launch; private pages and catalog stay bundled', async () => {
+  const fallback=readFileSync(path.join(build,'index.html'),'utf8');
+  assert.ok(fallback.includes('launch-password-form'));
+  assert.ok(!fallback.includes('products-grid'));
+  for(const file of ['product.html','checkout.html','catalog.json','_private-pages.js','functions/_private-pages.js'])assert.equal(existsSync(path.join(build,file)),false,file+' must not be public');
+  const {privatePages}=await import(require('node:url').pathToFileURL(path.join(workspace,'functions/_private-pages.js')).href);
+  assert.ok(privatePages['/shop'].body.includes('products-grid'));
+  assert.equal(JSON.parse(privatePages['/catalog.json'].body).products.length,5);
+  const routes=JSON.parse(readFileSync(path.join(build,'_routes.json'),'utf8'));
+  for(const route of routes.exclude){assert.ok(!route.includes('*'));assert.ok(existsSync(path.join(build,route)));}
+  assert.ok(!routes.exclude.includes('/catalog.json'));
+});

@@ -1,6 +1,10 @@
 import { noStore, origin } from './auth/_lib.js';
 
 const methods = new Map([
+  ['/api/preview/unlock', ['POST']],
+  ['/api/preview/logout', ['POST']],
+  ['/api/checkout/config', ['GET']],
+  ['/api/checkout/session', ['POST']],
   ['/api/auth/start', ['GET', 'POST']],
   ['/api/auth/callback', ['GET']],
   ['/api/auth/session', ['GET']],

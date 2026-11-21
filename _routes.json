@@ -1,5 +1,27 @@
 {
   "version": 1,
-  "include": ["/api/*"],
-  "exclude": []
+  "include": ["/*"],
+  "exclude": [
+    "/styles.css",
+    "/hero.css",
+    "/footer.css",
+    "/legal.css",
+    "/launch.css",
+    "/launch.js",
+    "/countdown.js",
+    "/translations.js",
+    "/i18n.js",
+    "/auth.js",
+    "/assets/dvn-wordmark.png",
+    "/assets/dvn-logo-white.png",
+    "/assets/dvn-emblem.png",
+    "/assets/brand/dvn-mail-avatar.png",
+    "/assets/brand/dvn-mail-wordmark.png",
+    "/assets/brand/mail-view.css",
+    "/assets/social/whatsapp.svg",
+    "/assets/social/tiktok.svg",
+    "/assets/social/instagram.svg",
+    "/assets/fonts/manrope-latin-wght-normal.woff2",
+    "/assets/fonts/OFL-Manrope.txt"
+  ]
 }
