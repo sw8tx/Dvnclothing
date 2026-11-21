@@ -43,3 +43,8 @@ customer selects the 3D gallery item. No-WebGL devices immediately retain the
 original product photo. Network/model failures offer a retry and keep the photo.
 The build validates every catalog product's GLB header, geometry and embedded
 resources before deployment. All viewer assets remain behind the preview gate.
+
+The CSP permits only the pinned model-viewer 4.0.0 shadow stylesheet via its
+SHA-256 hash, plus local `blob:` connections for GLB texture decoding. It does
+not allow arbitrary inline scripts/styles, external connections, or eval.
+Update the stylesheet hash when upgrading the bundled viewer.

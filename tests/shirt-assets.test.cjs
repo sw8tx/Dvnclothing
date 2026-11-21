@@ -21,7 +21,13 @@ async function get(path,cookie='',mime){
 test('3D models and lazy viewer stay private until the launch password is accepted',async()=>{
   for(const path of paths){const {response,fetched}=await get(path);assert.equal(response.status,401,path);assert.equal(fetched,0);}
   const cookie=await session();
-  for(const path of paths){const {response,fetched}=await get(path,cookie);assert.equal(response.status,200,path);assert.equal(fetched,1);assert.equal(response.headers.get('Cache-Control'),'private, no-store');assert.equal(response.headers.get('Vary'),'Cookie');}
+  for(const path of paths){const {response,fetched}=await get(path,cookie);assert.equal(response.status,200,path);assert.equal(fetched,1);assert.equal(response.headers.get('Cache-Control'),'private, no-store');assert.equal(response.headers.get('Vary'),'Cookie');
+    const csp=response.headers.get('Content-Security-Policy');
+    assert.match(csp, /script-src 'self';/);
+    assert.match(csp, /style-src 'self' 'sha256-yhlpZVZMy2vXExwTGihUWVSrOxyhMuvj\+Ygg7pyBWek=';/);
+    assert.match(csp, /connect-src 'self' blob:;/);
+    assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval/);
+  }
 });
 test('missing models cannot become the HTML fallback and arbitrary model paths are rejected',async()=>{
   const cookie=await session();

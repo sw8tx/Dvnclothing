@@ -18,7 +18,9 @@ const mailPage = /^\/mail\/(?:login|bonus)\/(?:de|en)(?:\.html)?$/;
 const storefrontPage = /^\/(?:index(?:\.html)?|shop(?:\.html)?)?\/?$/;
 const productPage = /^\/(?:product(?:\.html)?|products(?:\/[a-zA-Z0-9-]+)?)\/?$/;
 const checkoutPage = /^\/checkout(?:\.html)?\/?$/;
-const defaultCsp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data: https://*.googleusercontent.com; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'";
+// Pinned model-viewer 4.0.0 shadow stylesheet. GLB ImageBitmap textures are
+// decoded through local blob URLs; no external connection origin is allowed.
+const defaultCsp = "default-src 'self'; script-src 'self'; style-src 'self' 'sha256-yhlpZVZMy2vXExwTGihUWVSrOxyhMuvj+Ygg7pyBWek='; img-src 'self' blob: data: https://*.googleusercontent.com; font-src 'self'; connect-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'";
 
 function responseHeaders(response, { privateContent = false, varyCookie = false } = {}) {
   const result = new Response(response.body, response);
