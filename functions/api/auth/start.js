@@ -1,18 +1,21 @@
-import { cookie, noStore, origin, random, ready, seal, setCookie } from './_lib.js';
+import { cookie, encode, noStore, origin, random, ready, seal, setCookie } from './_lib.js';
 import { profileConfigured, rawIdentity } from './_profile.js';
 import { body, mac } from './email/_shared.js';
 
 async function begin(env, site, linking) {
   const state = random();
   const nonce = random();
+  const verifier = random();
+  const challenge = encode(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   url.search = new URLSearchParams({
     client_id: env.GOOGLE_CLIENT_ID, redirect_uri: site + '/api/auth/callback',
     response_type: 'code', scope: 'openid email profile', state, nonce,
+    code_challenge: challenge, code_challenge_method: 'S256',
   }).toString();
   if (linking) url.searchParams.set('prompt', 'select_account');
   const response = noStore(linking ? Response.json({ url: url.href }) : Response.redirect(url, 302));
-  const pending = await seal({ state, nonce, linking, exp: Math.floor(Date.now() / 1000) + 600 }, env.AUTH_COOKIE_SECRET);
+  const pending = await seal({ state, nonce, verifier, linking, exp: Math.floor(Date.now() / 1000) + 600 }, env.AUTH_COOKIE_SECRET);
   setCookie(response, '__Host-dvn-pending', pending, 600);
   return response;
 }

@@ -15,13 +15,16 @@ export async function onRequestGet({ request, env }) {
     return response;
   }
   const failed = pending?.linking ? 'link_failed' : 'failed';
-  if (!pending || !url.searchParams.get('state') || pending.state !== url.searchParams.get('state') || !url.searchParams.get('code')) {
+  if (!pending || !/^[A-Za-z0-9_-]{43}$/.test(pending.verifier || '') ||
+      !url.searchParams.get('state') || pending.state !== url.searchParams.get('state') ||
+      !url.searchParams.get('code') || url.searchParams.get('code').length > 2048) {
     return finish(failed);
   }
   try {
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ code: url.searchParams.get('code'), client_id: env.GOOGLE_CLIENT_ID, client_secret: env.GOOGLE_CLIENT_SECRET, redirect_uri: `${site}/api/auth/callback`, grant_type: 'authorization_code' }),
+      body: new URLSearchParams({ code: url.searchParams.get('code'), code_verifier: pending.verifier, client_id: env.GOOGLE_CLIENT_ID, client_secret: env.GOOGLE_CLIENT_SECRET, redirect_uri: `${site}/api/auth/callback`, grant_type: 'authorization_code' }),
+      signal: AbortSignal.timeout(9000), redirect: 'manual',
     });
     if (!tokenResponse.ok) throw Error('Token exchange failed');
     const { id_token: idToken } = await tokenResponse.json();
@@ -38,6 +41,7 @@ export async function onRequestGet({ request, env }) {
     const session = await seal({ ...profile, exp: Math.floor(Date.now() / 1000) + 604800 }, env.AUTH_COOKIE_SECRET);
     const response = noStore(Response.redirect(`${site}/?login=complete`, 302));
     clearCookie(response, '__Host-dvn-pending');
+    clearCookie(response, '__Host-dvn-email-challenge');
     setCookie(response, '__Host-dvn-session', session, 604800);
     return response;
   } catch {

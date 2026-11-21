@@ -390,11 +390,13 @@ test('verification reports a database outage separately and permits a retry afte
   });
   const unavailable = await request('verify', { code }, pending);
   assert.equal(unavailable.status, 503);
-  assert.deepEqual(await unavailable.json(), { error: 'unavailable' });
+  assert.deepEqual(await unavailable.json(), { error: 'store_daily_limit' });
+  const reset = Date.parse(unavailable.headers.get('Date')) + Number(unavailable.headers.get('Retry-After')) * 1000;
+  assert.equal(reset % 86400000, 0);
   assert.equal(unavailable.headers.get('Set-Cookie'), null);
   assert.equal(db.prepare('SELECT tries FROM email_login_attempts').get().tries, 0);
   assert.deepEqual(log.mock.calls.map(call => call.arguments), [
-    ['email_auth_verify', { stage: 'consume', category: 'quota' }],
+    ['email_auth_verify', { stage: 'consume', category: 'daily_quota' }],
   ]);
   blocked.mock.restore();
   const verified = await request('verify', { code }, pending);

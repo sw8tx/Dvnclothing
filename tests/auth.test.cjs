@@ -19,7 +19,14 @@ test('Google redirect uses state and nonce and rejects a forged callback', async
   assert.equal(authorization.searchParams.get('scope'), 'openid email profile');
   assert.ok(authorization.searchParams.get('nonce'));
   assert.ok(authorization.searchParams.get('state'));
+  assert.equal(authorization.searchParams.get('code_challenge_method'), 'S256');
+  const { unseal } = await import('../functions/api/auth/_lib.js');
   const pending = response.headers.get('Set-Cookie');
+  const pendingData = await unseal(pending.split(';')[0].split('=')[1], env.AUTH_COOKIE_SECRET);
+  assert.match(pendingData.verifier, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal(Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pendingData.verifier))).toString('base64url'), authorization.searchParams.get('code_challenge'));
+  assert.notEqual(pendingData.verifier, authorization.searchParams.get('code_challenge'));
+  assert.equal(authorization.searchParams.has('code_verifier'), false);
   assert.match(pending, /Secure; HttpOnly; SameSite=Lax/);
   const forged = await callback({
     request: new Request('https://dvnclothing.com/api/auth/callback?code=fake&state=forged', {
@@ -46,6 +53,15 @@ test('sessions reject tampering and logout requires the site origin', async () =
   const valid = await logout({ request: new Request('https://dvnclothing.com/api/auth/logout', { method: 'POST', headers: { Origin: 'https://dvnclothing.com' } }) });
   assert.equal(valid.status, 204);
   assert.match(valid.headers.get('Set-Cookie'), /Max-Age=0/);
+  assert.deepEqual(valid.headers.getSetCookie().map(value => value.split('=')[0]).sort(),
+    ['__Host-dvn-email-challenge', '__Host-dvn-pending', '__Host-dvn-session']);
+  for (const host of ['http://dvnclothing.com', 'https://www.dvnclothing.com', 'https://dvnclothing.com:444', 'https://other.example']) {
+    const rejected = await logout({ request: new Request(host + '/api/auth/logout', {
+      method: 'POST', headers: { Origin: 'https://dvnclothing.com' },
+    }) });
+    assert.equal(rejected.status, 403);
+    assert.equal(rejected.headers.has('Set-Cookie'), false);
+  }
 });
 
 test('a verified Google callback exchanges the code and creates a usable session', async (t) => {
@@ -73,6 +89,7 @@ test('a verified Google callback exchanges the code and creates a usable session
     return payload + '.' + Buffer.from(signature).toString('base64url');
   }
   let idToken = await signClaims(claims);
+  let expectedChallenge = authorization.get('code_challenge');
   const fetchMock = t.mock.method(globalThis, 'fetch', async (url, options) => {
     if (url === 'https://oauth2.googleapis.com/token') {
       assert.equal(options.method, 'POST');
@@ -81,9 +98,15 @@ test('a verified Google callback exchanges the code and creates a usable session
       assert.equal(options.body.get('client_id'), env.GOOGLE_CLIENT_ID);
       assert.equal(options.body.get('client_secret'), env.GOOGLE_CLIENT_SECRET);
       assert.equal(options.body.get('grant_type'), 'authorization_code');
+      assert.equal(options.redirect, 'manual');
+      assert.ok(options.signal instanceof AbortSignal);
+      assert.match(options.body.get('code_verifier'), /^[A-Za-z0-9_-]{43}$/);
+      assert.equal(Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(options.body.get('code_verifier')))).toString('base64url'), expectedChallenge);
       return Response.json({ id_token: idToken });
     }
     assert.equal(url, 'https://www.googleapis.com/oauth2/v3/certs');
+    assert.equal(options.redirect, 'manual');
+    assert.ok(options.signal instanceof AbortSignal);
     return Response.json({ keys: [{ ...publicKey, kid: header.kid, use: 'sig' }] });
   });
 
@@ -142,6 +165,7 @@ test('a verified Google callback exchanges the code and creates a usable session
   const linkStart = await initiate(site, emailCookie);
   assert.equal(linkStart.status, 200);
   const linkAuth = new URL((await linkStart.json()).url);
+  expectedChallenge = linkAuth.searchParams.get('code_challenge');
   assert.equal(linkAuth.searchParams.get('prompt'), 'select_account');
   const pendingCookie = linkStart.headers.get('Set-Cookie').split(';')[0];
   const linkUrl = new URL(callbackUrl);

@@ -16,7 +16,7 @@ before(async () => {
   // Run the deploy build in isolation so a test cannot overwrite an existing build.
   workspace = mkdtempSync(path.join(tmpdir(), 'dvn-mail-test-'));
   const inputs = readdirSync(root).filter(name => /\.(?:html|css|js)$/.test(name) ||
-    ['_headers', '_redirects', 'package.json', 'scripts', 'functions', 'assets'].includes(name));
+    ['_headers', '_redirects', '_routes.json', 'package.json', 'scripts', 'functions', 'assets'].includes(name));
   for (const input of inputs) cpSync(path.join(root, input), path.join(workspace, input), { recursive: true });
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: workspace, stdio: 'pipe' });
   build = path.join(workspace, 'dist');

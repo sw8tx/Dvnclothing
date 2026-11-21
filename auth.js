@@ -33,12 +33,15 @@
       sendForbidden: 'Lade die Shopseite neu und fordere den Code noch einmal an.',
       nextTry: 'Erneut versuchen ab {time} Uhr.',
       verifyError: 'Der Code konnte nicht geprüft werden. Bitte versuche es erneut.', logoutError: 'Die Abmeldung ist fehlgeschlagen. Bitte versuche es erneut.',
+      verifyOffline: 'Die Anmeldung ist vorübergehend nicht verfügbar. Dein Code wurde nicht als falsch gewertet. Versuche es später erneut; nach Ablauf brauchst du einen neuen Code.',
+      verifyPaused: 'Die Anmeldung ist vorübergehend nicht verfügbar. Fordere nach der unten genannten Zeit einen neuen Code an.',
       profileError: 'Dein Profil konnte nicht gespeichert werden. Bitte prüfe deine Angaben und versuche es erneut.',
       denied: 'Die Anmeldung wurde abgebrochen oder ist fehlgeschlagen.', expired: 'Bitte melde dich erneut an.',
       codeHint: 'Die sechs Ziffern eingeben oder den ganzen Code einfügen.', clock: 'Code gültig für {time}', timeout: 'Code abgelaufen. Bitte fordere einen neuen an.',
       verifiedTitle: 'Code bestätigt', verified: 'Dein Code wurde bestätigt. Lade deine Kontodaten erneut, um fortzufahren.', load: 'Kontodaten erneut laden', restart: 'Zur Anmeldung',
       connected: 'Du bist jetzt angemeldet.', emailMethod: 'Mit E-Mail verbunden', googleMethod: 'Mit Google verbunden', googleWithEmail: 'Mit Google angemeldet · E-Mail verknüpft', emailWithGoogle: 'Mit E-Mail angemeldet · Google verknüpft',
       profileOffline: 'Dein gespeichertes Profil ist gerade nicht verfügbar. Bitte versuche es noch einmal.', profileRetry: 'Profil erneut laden',
+      accountOffline: 'Du bist angemeldet. Profil und Warenkorb sind vorübergehend nicht verfügbar. Deine gespeicherte Auswahl bleibt erhalten. Bitte lade dein Konto später erneut.',
       bonusTitle: '15 % auf deine erste Bestellung', congrats: 'Glückwunsch und willkommen bei DVN!',
       bonusLink: 'Verknüpfe deine Anmeldemethoden, um deinen vorhandenen Code zu sehen.',
       bonusIssued: 'Dein persönlicher Willkommenscode', bonusLoading: 'Dein Willkommenscode wird geladen …',
@@ -82,12 +85,15 @@
       sendForbidden: 'Reload the shop page and request your code again.',
       nextTry: 'Try again from {time}.',
       verifyError: 'We couldn’t verify your code. Please try again.', logoutError: 'We couldn’t sign you out. Please try again.',
+      verifyOffline: 'Sign-in is temporarily unavailable. Your code was not marked as incorrect. Try again later; you’ll need a new code if it expires.',
+      verifyPaused: 'Sign-in is temporarily unavailable. Request a new code after the time shown below.',
       profileError: 'We couldn’t save your profile. Check the details and try again.',
       denied: 'Sign-in was cancelled or unsuccessful.', expired: 'Please sign in again.',
       codeHint: 'Enter the six digits or paste the full code.', clock: 'Code valid for {time}', timeout: 'Code expired. Request a new one.',
       verifiedTitle: 'Code verified', verified: 'Your code has been verified. Reload your account details to continue.', load: 'Reload account details', restart: 'Back to sign in',
       connected: 'You’re now signed in.', emailMethod: 'Connected with email', googleMethod: 'Connected with Google', googleWithEmail: 'Signed in with Google · Email linked', emailWithGoogle: 'Signed in with email · Google linked',
       profileOffline: 'Your saved profile is temporarily unavailable. Please try again.', profileRetry: 'Reload profile',
+      accountOffline: 'You’re signed in. Your profile and bag are temporarily unavailable. Your saved selection is preserved. Please reload your account later.',
       bonusTitle: '15% off your first order', congrats: 'Congratulations and welcome to DVN!',
       bonusLink: 'Connect your sign-in methods to see your existing code.',
       bonusIssued: 'Your personal welcome code', bonusLoading: 'Loading your welcome code …',
@@ -107,6 +113,8 @@
   let user = null;
   let session = {};
   let sessionRequest = null;
+  let sessionRevision = 0;
+  let accountUser = null;
   let sessionKnown = false;
   let page = 'loading';
   let action = '';
@@ -137,21 +145,41 @@
   const linkEmail = find('#account-link-email');
   const name = find('#account-display-name');
   const photo = find('#account-photo');
+  let accountChannel;
+  try {
+    if (typeof BroadcastChannel === 'function') accountChannel = new BroadcastChannel('dvn-account');
+  } catch { /* Storage restrictions must not prevent signing in. */ }
+
+  function invalidateSession() {
+    sessionRevision++;
+    sessionRequest = null;
+  }
+
+  function resetAccountForm() {
+    clearInterval(timer);
+    code.value = mail.value = linkEmail.value = name.value = photo.value = email = '';
+    draftAvatar = undefined;
+    expiresAt = resendAt = 0;
+    confirmed = linkFlow = false;
+    afterLogin = feedback = error = '';
+  }
 
   function setUser(next) {
-    const changed = !sessionKnown || JSON.stringify(user) !== JSON.stringify(next);
-    if ((next?.id || '') !== bonusOwner || next?.linkedProviders?.join(',') !== user?.linkedProviders?.join(',')) {
+    const available = session.accountAvailable === false ? null : next;
+    const changed = !sessionKnown || JSON.stringify(accountUser) !== JSON.stringify(available);
+    if ((available?.id || '') !== bonusOwner || available?.linkedProviders?.join(',') !== accountUser?.linkedProviders?.join(',')) {
       bonusRevision++;
       clearTimeout(bonusTimer);
       bonusRetry = null;
-      bonusOwner = next?.id || '';
+      bonusOwner = available?.id || '';
       bonusCode = bonusNotice = '';
       bonusState = 'idle';
       newBonus = false;
     }
     user = next;
+    accountUser = available;
     sessionKnown = true;
-    if (changed) document.dispatchEvent(new CustomEvent('dvn:authchange', { detail: { user } }));
+    if (changed) document.dispatchEvent(new CustomEvent('dvn:authchange', { detail: { user: accountUser } }));
   }
 
   function avatar(target, picture) {
@@ -162,7 +190,7 @@
     if (!safe && picture) {
       try {
         const url = new URL(picture);
-        safe = url.protocol === 'https:' && url.hostname.endsWith('.googleusercontent.com');
+        safe = url.protocol === 'https:' && !url.username && !url.password && !url.port && url.hostname.endsWith('.googleusercontent.com');
       } catch { /* The local DVN emblem remains visible. */ }
     }
     if (!safe) return;
@@ -205,7 +233,7 @@
 
   function renderBonus() {
     const t = words[language()];
-    const visible = page === 'member' && Boolean(user?.id);
+    const visible = page === 'member' && Boolean(bonusOwner);
     find('[data-account-bonus]').hidden = !visible;
     if (!visible) return;
     const issued = bonusState === 'issued';
@@ -331,6 +359,7 @@
     confirmation.hidden = !feedback || (feedback === 'connected' && page === 'member');
     confirmation.textContent = t[feedback] || '';
     find('[data-account-profile-status]').hidden = Boolean(session.profileConfigured);
+    find('[data-account-profile-status]').textContent = session.accountAvailable === false ? t.accountOffline : t.profileOffline;
     find('[data-account-profile-retry]').hidden = Boolean(session.profileConfigured);
     find('[data-account-edit]').hidden = !session.profileConfigured;
     find('[data-account-logout]').textContent = action === 'logout' ? t.leaving : t.logout;
@@ -387,10 +416,13 @@
 
   function checkSession() {
     if (sessionRequest) return sessionRequest;
+    const revision = sessionRevision;
     sessionRequest = (async () => {
       try {
-        session = await api('session');
-        if (typeof session?.configured !== 'boolean') throw new Error('Unexpected session');
+        const response = await api('session');
+        if (revision !== sessionRevision) return false;
+        if (typeof response?.configured !== 'boolean') throw new Error('Unexpected session');
+        session = response;
         const next = session.user || null;
         const previous = user?.id;
         if (linkFlow && !confirmed && next?.id !== previous) {
@@ -413,14 +445,17 @@
           page = 'guest';
         }
       } catch {
+        if (revision !== sessionRevision) return false;
         session = {};
         setUser(null);
         page = confirmed ? 'recover' : 'error';
       } finally {
-        sessionRequest = null;
-        render();
+        if (revision === sessionRevision) {
+          sessionRequest = null;
+          render();
+        }
       }
-      return Boolean(user);
+      return Boolean(accountUser);
     })();
     return sessionRequest;
   }
@@ -440,9 +475,11 @@
   }
 
   window.DVNAuth = {
-    get user() { return user; },
+    get user() { return accountUser; },
     async requireLogin() {
+      if (action === 'logout') return false;
       const signedIn = await checkSession();
+      if (action === 'logout') return false;
       if (!signedIn) {
         cartIntent = true;
         render();
@@ -490,6 +527,10 @@
       }
       else if (err.status === 429) error = 'limit';
       else if (err.status === 400 && nextAction === 'verify') error = 'invalidCode';
+      else if (err.status === 503 && nextAction === 'verify') {
+        sendRetry = err.retry;
+        error = err.reason === 'store_daily_limit' && sendRetry ? 'verifyPaused' : 'verifyOffline';
+      }
       else if (err.status === 401 && nextAction === 'save') { await checkSession(); error = 'expired'; }
       else error = errorKey;
     } finally {
@@ -563,6 +604,8 @@
       clearInterval(timer);
       page = 'loading';
       code.value = '';
+      invalidateSession();
+      accountChannel?.postMessage('changed');
       await checkSession();
       cartIntent = false;
       mail.value = email = '';
@@ -656,19 +699,32 @@
       if (draftAvatar !== undefined) payload.avatar = draftAvatar;
       await api('profile', payload);
       page = 'member';
+      invalidateSession();
       await checkSession();
       if (user) feedback = 'saved';
       if (dialog.open) find('#account-title').focus();
     });
   });
   find('[data-account-logout]').addEventListener('click', () => perform('logout', 'logoutError', async () => {
+    invalidateSession();
     await api('logout', {});
+    invalidateSession();
     setUser(null);
-    linkFlow = false;
+    resetAccountForm();
+    accountChannel?.postMessage('signed-out');
     page = 'guest';
-    await checkSession();
     if (dialog.open) find('#account-title').focus();
   }));
+
+  accountChannel?.addEventListener('message', event => {
+    if (!['signed-out', 'changed'].includes(event.data)) return;
+    invalidateSession();
+    setUser(null);
+    resetAccountForm();
+    page = event.data === 'signed-out' ? 'guest' : 'loading';
+    render();
+    if (event.data === 'changed') checkSession();
+  });
 
   opener.addEventListener('click', () => {
     cartIntent = false;
@@ -695,6 +751,9 @@
   });
   document.addEventListener('dvn:languagechange', render);
   window.addEventListener('pageshow', e => { if (e.persisted) checkSession(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && sessionKnown && !action) checkSession();
+  });
   const url = new URL(location.href);
   const result = url.searchParams.get('login');
   if (['complete', 'failed', 'linked', 'link_failed', 'link_conflict'].includes(result)) {
@@ -702,6 +761,7 @@
     history.replaceState(history.state, '', url);
     error = ({ failed: 'denied', link_failed: 'linkFailed', link_conflict: 'linkConflict' })[result] || '';
     afterLogin = ({ complete: 'connected', linked: 'linked' })[result] || '';
+    if (afterLogin) accountChannel?.postMessage('changed');
     show();
   }
   render();

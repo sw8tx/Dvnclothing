@@ -9,6 +9,7 @@ const mismatch = `UPDATE email_login_attempts SET tries = tries + 1 WHERE ${elig
 
 function databaseCategory(error) {
   const messages = [error?.message, error?.cause?.message].join(' ');
+  if (/\b(?:daily|today|per day|in a day|midnight)\b/i.test(messages) && /quota|limit|allowance/i.test(messages)) return 'daily_quota';
   if (/quota|daily.*limit|limit.*daily|free tier/i.test(messages)) return 'quota';
   return 'database';
 }
@@ -47,6 +48,7 @@ export async function onRequestPost({ request, env }) {
       setCookie(accepted, '__Host-dvn-session', session, age);
     }
     clearCookie(accepted, challengeCookie);
+    clearCookie(accepted, '__Host-dvn-pending');
 
     // Both writes run in one D1 transaction; only one can match. No session
     // leaves this function until D1 confirms this request consumed the code.
@@ -71,6 +73,12 @@ export async function onRequestPost({ request, env }) {
   } catch (error) {
     const category = stage === 'prepare' ? 'internal' : databaseCategory(error);
     console.warn('email_auth_verify', { stage, category });
-    return json({ error: 'unavailable' }, 503);
+    const response = json({ error: category === 'daily_quota' ? 'store_daily_limit' : 'verification_unavailable' }, 503);
+    if (category === 'daily_quota') {
+      const observedAt = Math.floor(Date.now() / 1000);
+      response.headers.set('Date', new Date(observedAt * 1000).toUTCString());
+      response.headers.set('Retry-After', String(86400 - observedAt % 86400));
+    }
+    return response;
   }
 }

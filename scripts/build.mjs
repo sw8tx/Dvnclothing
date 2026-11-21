@@ -22,7 +22,7 @@ for (const [, reference] of references) {
 // Only publish the site files, never repository metadata or local tooling.
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
-for (const file of [...pages, 'styles.css', 'hero.css', 'footer.css', 'legal.css', 'shop.css', 'shop.js', 'countdown.js', 'translations.js', 'i18n.js', 'auth.js', 'assets', '_headers']) {
+for (const file of [...pages, 'styles.css', 'hero.css', 'footer.css', 'legal.css', 'shop.css', 'shop.js', 'countdown.js', 'translations.js', 'i18n.js', 'auth.js', 'assets', '_headers', '_routes.json']) {
   await cp(path.join(root, file), path.join(output, file), { recursive: true });
 }
 // Use content-based URLs for styles and client code so each release loads matching assets.

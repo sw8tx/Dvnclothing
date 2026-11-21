@@ -65,21 +65,24 @@ class Element extends EventTarget {
   removeAttribute() {}
   toggleAttribute() {}
   focus() {}
+  select() {}
   showModal() { this.open = true; }
 }
 
-async function mount({ lang = 'de', configured = false, user = null, handle } = {}) {
+async function mount({ lang = 'de', configured = false, user = null, accountAvailable = true, handle, handleSession, BroadcastChannel } = {}) {
   const document = new Element();
   const dialog = new Element();
   const window = new EventTarget();
   const clock = browserClock();
-  const session = { configured, emailConfigured: true, profileConfigured: true, user };
+  const session = { configured, emailConfigured: true, profileConfigured: accountAvailable, accountAvailable, user };
+  const accountChanges = [];
+  document.addEventListener('dvn:authchange', event => accountChanges.push(event.detail.user));
   document.documentElement = { lang };
   document.getElementById = id => id === 'account-dialog' ? dialog : null;
   const find = selector => dialog.querySelector(selector);
   const requests = [];
   async function fetch(url, options) {
-    if (url === '/api/auth/session') return Response.json(session);
+    if (url === '/api/auth/session') return handleSession ? handleSession(session) : Response.json(session);
     const request = { url, method: options.method };
     if (options.body) request.payload = JSON.parse(options.body);
     requests.push(request);
@@ -87,12 +90,12 @@ async function mount({ lang = 'de', configured = false, user = null, handle } = 
   }
   vm.runInNewContext(script, {
     document, window, location: new URL('https://example.test/'),
-    URL, CustomEvent, AbortController, AbortSignal, fetch, ...clock.globals,
+    URL, CustomEvent, AbortController, AbortSignal, BroadcastChannel, fetch, ...clock.globals,
   });
   document.querySelector('[data-google-auth]').dispatchEvent(new Event('click'));
   await nextTurn();
   assert.equal(dialog.open, true);
-  return { find, requests, clock, dialog, window, session };
+  return { find, requests, clock, dialog, window, session, document, accountChanges };
 }
 
 async function submitEmail(startResponse, options = {}) {
@@ -272,3 +275,88 @@ test('a restored browser page invalidates the previous member’s pending retry 
   await mounted.clock.advance(121000);
   assert.equal(mounted.requests.length, 2);
 });
+
+test('a database outage keeps sign-in visible but blocks bag access and further bonus queries', async () => {
+  const view = await mount({
+    user: member, accountAvailable: false,
+    handle: () => { throw Error('No bonus requests should run while account resolution is unavailable'); },
+  });
+  assert.equal(view.find('[data-account-member]').hidden, false);
+  assert.equal(view.find('[data-account-bonus]').hidden, true);
+  assert.equal(view.find('[data-account-edit]').hidden, true);
+  assert.equal(view.find('[data-account-profile-status]').hidden, false);
+  assert.match(view.find('[data-account-profile-status]').textContent, /Warenkorb.*vorübergehend/);
+  assert.equal(view.window.DVNAuth.user, null);
+  assert.equal(await view.window.DVNAuth.requireLogin(), false);
+  assert.deepEqual(view.accountChanges, [null]);
+  assert.deepEqual(view.requests, []);
+  view.session.user = null;
+  view.session.accountAvailable = true;
+  await view.window.DVNAuth.requireLogin();
+  assert.equal(view.find('[data-account-guest]').hidden, false);
+});
+
+test('a delayed pre-logout session response cannot restore the signed-out account', async () => {
+  let delayed;
+  let delay = false;
+  const view = await mount({
+    user: member,
+    handle: ({ url }) => url === '/api/auth/logout' ? new Response(null, { status: 204 }) : Response.json({ bonus: issued }),
+    handleSession: session => delay ? new Promise(resolve => { delayed = () => resolve(Response.json(session)); }) : Response.json(session),
+  });
+  assert.equal(view.window.DVNAuth.user.id, member.id);
+  delay = true;
+  view.document.querySelector('[data-google-auth]').dispatchEvent(new Event('click'));
+  await nextTurn();
+  view.find('[data-account-logout]').dispatchEvent(new Event('click'));
+  await nextTurn();
+  assert.equal(view.window.DVNAuth.user, null);
+  delayed();
+  await nextTurn();
+  assert.equal(view.window.DVNAuth.user, null);
+  assert.equal(view.find('[data-account-guest]').hidden, false);
+  assert.equal(view.accountChanges.at(-1), null);
+});
+
+test('sign-out from another tab clears the account without a database request', async () => {
+  const channels = [];
+  class Channel extends EventTarget {
+    constructor() { super(); channels.push(this); }
+    postMessage() {}
+  }
+  let sessionCalls = 0;
+  const view = await mount({
+    user: member, BroadcastChannel: Channel,
+    handle: () => Response.json({ bonus: issued }),
+    handleSession: session => { sessionCalls++; return Response.json(session); },
+  });
+  const callsBefore = sessionCalls;
+  view.find('#account-code').value = '123456';
+  channels[0].dispatchEvent(Object.assign(new Event('message'), { data: 'signed-out' }));
+  await nextTurn();
+  assert.equal(view.window.DVNAuth.user, null);
+  assert.equal(view.find('#account-code').value, '');
+  assert.equal(view.find('[data-account-guest]').hidden, false);
+  assert.equal(sessionCalls, callsBefore);
+});
+
+for (const lang of ['de', 'en']) {
+  test(lang + ' code verification distinguishes an outage from an incorrect code', async () => {
+    const view = await mount({ lang, handle: ({ url }) => url.endsWith('/start')
+      ? Response.json({ sent: true }, { status: 202 })
+      : temporary('store_daily_limit', requestedAt, 120),
+    });
+    view.find('#account-mail').value = 'member@example.test';
+    view.find('[data-account-email-form]').dispatchEvent(new Event('submit', { cancelable: true }));
+    await nextTurn();
+    view.find('#account-code').value = '123456';
+    view.find('[data-account-code-form]').dispatchEvent(new Event('submit', { cancelable: true }));
+    await nextTurn();
+    assert.equal(view.find('[data-account-code-form]').hidden, false);
+    const message = view.find('[data-account-error]').textContent;
+    assert.match(message, lang === 'de' ? /neuen Code/ : /new code/);
+    assert.doesNotMatch(message, lang === 'de' ? /Code ist falsch/ : /code is incorrect/);
+    assertCalendar(message, lang, requestedAt + 120000);
+    assert.equal(view.window.DVNAuth.user, null);
+  });
+}
