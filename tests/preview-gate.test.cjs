@@ -52,6 +52,9 @@ function assets() {
     if (['/launch.js', '/storefront.js', '/shop.0123456789abcdef.js'].includes(url.pathname)) {
       return new Response('const privateData = true;', { headers: { 'Content-Type': 'application/javascript' } });
     }
+    if (['/account.css', '/account.0123456789abcdef.css'].includes(url.pathname)) {
+      return new Response('.account-dialog { width: 450px; }', { headers: { 'Content-Type': 'text/css' } });
+    }
     if (url.pathname === '/assets/shop/black.webp') return new Response('private image', { headers: { 'Content-Type': 'image/webp' } });
     // Model Pages fallback behavior rather than returning a convenient 404.
     return new Response('PUBLIC STATIC FALLBACK', { headers: { 'Content-Type': 'text/html' } });
@@ -264,7 +267,12 @@ test('public legal and email pages remain reachable, while missing public assets
     assert.match(await response.text(), /^PUBLIC /);
   }
   assert.equal((await gate('/launch.js')).response.status, 200);
-  for (const path of ['/launch.ffffffffffffffff.js', '/assets/brand/missing.png', '/assets/fonts/missing.woff2']) {
+  for (const path of ['/account.css', '/account.0123456789abcdef.css']) {
+    const { response } = await gate(path);
+    assert.equal(response.status, 200, 'Account UI styles remain public on legal pages');
+    assert.equal(response.headers.get('Content-Type'), 'text/css');
+  }
+  for (const path of ['/launch.ffffffffffffffff.js', '/account.ffffffffffffffff.css', '/assets/brand/missing.png', '/assets/fonts/missing.woff2']) {
     const { response } = await gate(path);
     assert.equal(response.status, 404, path);
     assert.doesNotMatch(await response.text(), /STOREFRONT/);

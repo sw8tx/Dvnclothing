@@ -1,7 +1,10 @@
 {
   "version": 1,
-  "include": ["/*"],
+  "include": [
+    "/*"
+  ],
   "exclude": [
+    "/account.css",
     "/styles.css",
     "/hero.css",
     "/footer.css",
@@ -22,6 +25,12 @@
     "/assets/social/tiktok.svg",
     "/assets/social/instagram.svg",
     "/assets/fonts/manrope-latin-wght-normal.woff2",
-    "/assets/fonts/OFL-Manrope.txt"
+    "/assets/fonts/OFL-Manrope.txt",
+    "/assets/payments/apple-pay.svg",
+    "/assets/payments/google-pay.svg",
+    "/assets/payments/mastercard.svg",
+    "/assets/payments/paypal-wordmark.svg",
+    "/assets/payments/paypal.svg",
+    "/assets/payments/visa.svg"
   ]
 }

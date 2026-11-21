@@ -14,7 +14,12 @@
     document.querySelectorAll('[data-language]').forEach(el => el.setAttribute('aria-pressed',String(el.dataset.language===language)));
     document.dispatchEvent(new CustomEvent('dvn:languagechange'));
     password.placeholder = copy('Passwort','Password');
-    document.querySelector('#password-visibility').setAttribute('aria-label',copy('Passwort anzeigen oder verbergen','Show or hide password'));
+    const visible = password.type === 'text';
+    const visibility = document.querySelector('#password-visibility');
+    visibility.setAttribute('aria-label', visible ? copy('Passwort verbergen','Hide password') : copy('Passwort anzeigen','Show password'));
+    visibility.setAttribute('aria-pressed', String(visible));
+    visibility.textContent = visible ? copy('Verbergen','Hide') : copy('Zeigen','Show');
+    submit.textContent = busy ? copy('Wird geprüft …','Checking …') : copy('Shop ansehen','Enter shop');
   }
   document.querySelectorAll('[data-language]').forEach(button => button.addEventListener('click',() => {
     language=button.dataset.language;
@@ -32,6 +37,8 @@
     const show=password.type==='password';
     password.type=show?'text':'password';
     e.currentTarget.textContent=show?copy('Verbergen','Hide'):copy('Zeigen','Show');
+    e.currentTarget.setAttribute('aria-label',show?copy('Passwort verbergen','Hide password'):copy('Passwort anzeigen','Show password'));
+    e.currentTarget.setAttribute('aria-pressed',String(show));
   });
   form.addEventListener('submit',async e => {
     e.preventDefault();
@@ -51,12 +58,4 @@
     } catch(e) {error.textContent=e.name==='TypeError'||e.name==='TimeoutError'?copy('Bitte prüfe deine Verbindung und versuche es erneut.','Check your connection and try again.'):e.message;error.hidden=false;}
     finally {busy=false;submit.disabled=false;submit.textContent=copy('Shop ansehen','Enter shop');}
   });
-  const logo=document.querySelector('[data-logo-3d]');
-  const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-  let frame=0,px=0,py=0;
-  function paint(){frame=0;if(reduced.matches)return;const y=Math.min(1,scrollY/500);logo.style.transform=`rotateX(${-8+py*7+y*16}deg) rotateY(${-16+px*18+y*27}deg)`;}
-  function queue(){if(!frame)frame=requestAnimationFrame(paint);}
-  document.querySelector('.launch-logo-stage').addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;const r=e.currentTarget.getBoundingClientRect();px=(e.clientX-r.left)/r.width-.5;py=(e.clientY-r.top)/r.height-.5;queue();});
-  document.querySelector('.launch-logo-stage').addEventListener('pointerleave',()=>{px=py=0;queue();});
-  addEventListener('scroll',queue,{passive:true});reduced.addEventListener('change',()=>{if(reduced.matches)logo.style.transform='none';else queue();});queue();
 })();

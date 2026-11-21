@@ -7,10 +7,12 @@ const publicPages = new Map([
   ['/privacy', '/privacy'], ['/privacy.html', '/privacy'],
   ['/terms', '/terms'], ['/terms.html', '/terms'],
 ]);
-const publicCode = /^\/(?:styles|hero|footer|legal|launch|countdown|translations|i18n|auth)(?:\.[a-f0-9]{16})?\.(?:css|js)$/;
-const privateCode = /^\/(?:shop|storefront|store-cart|product|checkout)(?:\.[a-f0-9]{16})?\.(?:css|js)$/;
-const publicImages = /^\/assets\/(?:brand\/|social\/)?[a-zA-Z0-9_-]+\.(?:png|webp|jpe?g|svg|ico|css)$/;
+const publicCode = /^\/(?:styles|hero|footer|legal|launch|countdown|translations|i18n|auth|account)(?:\.[a-f0-9]{16})?\.(?:css|js)$/;
+const privateCode = /^\/(?:shop|storefront|store-cart|product|checkout|shirt-viewer)(?:\.[a-f0-9]{16})?\.(?:css|js)$/;
+const publicImages = /^\/assets\/(?:brand\/|social\/|payments\/)?[a-zA-Z0-9_-]+\.(?:png|webp|jpe?g|svg|ico|css)$/;
 const privateImages = /^\/assets\/(?:shop|products|lookbook)\/[a-zA-Z0-9_-]+\.(?:png|webp|jpe?g|svg)$/;
+const privateModels = /^\/assets\/models\/(?:blue-mirage-black|blue-mirage-white|define-your-vision|blue-sunshine|purple-sunshine)\.glb$/;
+const privateViewer = /^\/assets\/vendor\/model-viewer(?:\.min\.js|-LICENSE\.txt)$/;
 const fontAsset = /^\/assets\/fonts\/[a-zA-Z0-9_-]+\.woff2?$/;
 const mailPage = /^\/mail\/(?:login|bonus)\/(?:de|en)(?:\.html)?$/;
 const storefrontPage = /^\/(?:index(?:\.html)?|shop(?:\.html)?)?\/?$/;
@@ -56,6 +58,7 @@ function expectedType(path, html) {
   if (path.endsWith('.css')) return /^text\/css(?:;|$)/i;
   if (path.endsWith('.json')) return /^application\/json(?:;|$)/i;
   if (/\.woff2?$/.test(path)) return /^(?:font\/woff2?|application\/(?:font-woff|octet-stream))(?:;|$)/i;
+  if (path.endsWith('.glb')) return /^(?:model\/gltf-binary|application\/octet-stream)(?:;|$)/i;
   if (path.endsWith('.txt')) return /^text\/plain(?:;|$)/i;
   return /^image\//i;
 }
@@ -126,7 +129,7 @@ async function previewMiddleware(context, pages) {
     const store = storefrontPage.test(path);
     const product = productPage.test(path);
     const checkout = checkoutPage.test(path);
-    const privateAsset = privateCode.test(path) || privateImages.test(path) || path === '/catalog.json';
+    const privateAsset = privateCode.test(path) || privateImages.test(path) || privateModels.test(path) || privateViewer.test(path) || path === '/catalog.json';
     if (!store && !product && !checkout && !privateAsset) return error(404);
     const unlocked = await hasPreview(request, context.env);
     if (path === '/' && !unlocked) return await asset(context, '/launch', { html: true, varyCookie: true });

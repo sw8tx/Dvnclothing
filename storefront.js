@@ -1,3 +1,4 @@
+import { createShirtViewer } from './shirt-viewer.js';
 import { normalizeCart, cartSubtotal, cartStorageKey } from './store-cart.js';
 const $ = (selector,scope=document)=>scope.querySelector(selector);
 const $$ = (selector,scope=document)=>[...scope.querySelectorAll(selector)];
@@ -9,6 +10,7 @@ const bag=$('#shopping-bag');
 const toast=$('#store-toast');
 let toastTimer, catalog, products=[], cart=[], currentProduct, selectedImage=0, activeFilter='all';
 let user=window.DVNAuth?.user||null, storageKey=cartStorageKey(user), storageAvailable=true, productInit=false;
+let shirtViewer;
 let checkoutReady=false, checkoutMethods=[];
 const guestKey='dvn-first-drop-guest-bag';
 const heart='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m12 21-8.2-8.2a5.3 5.3 0 0 1 7.5-7.5l.7.7.7-.7a5.3 5.3 0 0 1 7.5 7.5L12 21Z"/></svg>';
@@ -129,12 +131,21 @@ function productCard(p){
 }
 function productImages(){
   const images=currentProduct.images.map((src,i)=>({src,label:i===0?t('Produktansicht','Product view'):t('Rückansicht','Back view'),isModel:false}));
+  images.splice(1,0,{src:currentProduct.image,label:t('3D-Ansicht','3D view'),is3D:true});
   if(currentProduct.id!=='define-your-vision')images.push({src:'/assets/lookbook/'+currentProduct.id+'.jpg',label:t('KI-generierte Styling-Visualisierung','AI-generated styling visualisation'),isModel:true});
   return images;
 }
 function showProductImage(index){
-  selectedImage=index;const item=productImages()[index];const main=$('#product-main-image');main.src=item.src;main.alt=currentProduct.name+' – '+item.label;main.classList.toggle('is-lookbook',item.isModel);$('#product-image-caption').textContent=item.isModel?item.label:t('Original-Produktfoto','Original product photo');
-  $$('#product-thumbnails button').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));
+  const images=productImages();selectedImage=(index+images.length)%images.length;const item=images[selectedImage];
+  $('#zoom-photo').hidden=Boolean(item.is3D);
+  if(item.is3D){
+    shirtViewer ||= createShirtViewer($('#product-3d-view'),currentProduct);
+    shirtViewer.show();$('#product-image-caption').textContent=t('360° · Interaktive Shirtansicht','360° · Interactive tee view');
+  }else{
+    shirtViewer?.hide();const main=$('#product-main-image');main.src=item.src;main.alt=currentProduct.name+' – '+item.label;main.classList.toggle('is-lookbook',item.isModel);$('#product-image-caption').textContent=item.isModel?item.label:t('Original-Produktfoto','Original product photo');
+  }
+  $('#gallery-position').textContent=(selectedImage+1)+' / '+images.length;
+  $$('#product-thumbnails button').forEach((button,i)=>{button.setAttribute('aria-pressed',String(i===selectedImage));button.setAttribute('aria-label',images[i].label);});
 }
 function renderProductCopy(){
   if(!currentProduct)return;
@@ -151,7 +162,8 @@ function initializeProduct(){
   currentProduct=products.find(p=>p.slug===id);
   if(!currentProduct){const message=$('#product-loading');message.replaceChildren(make('p','',t('Dieses Shirt wurde nicht gefunden.','This tee could not be found.')));const back=make('a','button-dark',t('Zur Kollektion','Back to collection'));back.href='/shop#collection';message.append(back);return;}
   const choices=$('#product-sizes');for(const size of currentProduct.sizes){const label=make('label');const input=make('input');input.type='radio';input.name='size';input.value=size;input.required=true;input.addEventListener('change',()=>{$('#selected-size').textContent='· '+size;$('#product-error').hidden=true;});label.append(input,make('span','',size));choices.append(label);}
-  const thumbs=$('#product-thumbnails');productImages().forEach((item,i)=>{const button=make('button');button.type='button';button.setAttribute('aria-label',item.label);button.setAttribute('aria-pressed',String(i===0));const img=make('img');img.src=item.src;img.alt='';img.width=80;img.height=86;button.append(img);button.addEventListener('click',()=>showProductImage(i));thumbs.append(button);});
+  const thumbs=$('#product-thumbnails');productImages().forEach((item,i)=>{const button=make('button');button.type='button';button.setAttribute('aria-label',item.label);button.setAttribute('aria-pressed',String(i===0));const img=make('img');img.src=item.src;img.alt='';img.width=80;img.height=86;button.append(img);if(item.is3D){button.classList.add('gallery-3d-thumb');button.append(make('span','','3D'));}button.addEventListener('click',()=>showProductImage(i));thumbs.append(button);});
+  $$('[data-gallery-step]').forEach(button=>button.addEventListener('click',()=>showProductImage(selectedImage+Number(button.dataset.galleryStep))));
   productInit=true;renderProductCopy();$('#product-loading').hidden=true;$('#product-layout').hidden=false;$('#related-section').hidden=false;
   $('#product-form').addEventListener('submit',e=>{e.preventDefault();addItem();});
   $$('[data-quantity]').forEach(button=>button.addEventListener('click',()=>{const input=$('#product-quantity');input.value=String(Math.max(1,Math.min(99,(Number(input.value)||1)+Number(button.dataset.quantity))));}));

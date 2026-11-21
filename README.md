@@ -2,6 +2,10 @@
 
 **First Drop** ist die zweisprachige Shop-Vorschau auf dvnclothing.com. Öffentlich erscheint die Launch-Seite für den 6. Dezember 2026, 00:00 Uhr Europe/Berlin. Nach dem Vorschaupasswort stehen fünf echte DVN-Shirts mit Produktgalerien, Größen S/M/L, Favoriten, Warenkorb und Bestellübersicht zur Verfügung.
 
+Die Launch-Seite verwendet eine kompakte, weiße Countdown-Ansicht. Das Konto-Fenster hat ein eigenes gemeinsames Stylesheet (`account.css`), das auf allen Konto-Seiten unabhängig vom Hero geladen wird. Zahlungslogos sind lokale farbige SVG-Dateien; Herkunft und Lizenz stehen unter `assets/payments/`.
+
+In den Produktgalerien bleibt das Originalfoto an erster Stelle. Die zweite Ansicht enthält ein drehbares 3D-Shirt mit Pfeiltasten, Ziehen, Zoom und Rückkehr zur Vorderseite. Die KI-gestützte Visualisierung ist ausdrücklich als Annäherung gekennzeichnet. Modelle und Viewer werden lokal ausgeliefert und erst bei Auswahl der 3D-Ansicht geladen. Ohne WebGL bleibt das Originalfoto sichtbar.
+
 Der bestätigte Katalog liegt in `catalog.json`: vier Shirts zu 20 €, Define Your Vision zu 22 €, Deutschlandversand 4,90 € und 3–5 Werktage. Original-Produktbilder liegen in `assets/products/`, vier KI-generierte Stylingbilder in `assets/lookbook/`. Herkunft und Bildbearbeitung sind in [docs/asset-sources.md](docs/asset-sources.md) dokumentiert. Kontakt: `service@dvnclothing.com`.
 
 ## Lokal prüfen

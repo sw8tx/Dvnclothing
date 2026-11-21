@@ -10,12 +10,18 @@ const publicPages=['launch.html','impressum.html','terms.html','privacy.html'];
 const protectedPages={'/shop':'index.html','/product':'product.html','/checkout':'checkout.html'};
 const sourcePages=[...publicPages,...Object.values(protectedPages)];
 const documents=new Map(await Promise.all(sourcePages.map(async file=>[file,await readFile(path.join(root,file),'utf8')])));
-const styles=['styles.css','hero.css','footer.css','legal.css','shop.css','storefront.css','launch.css'];
-const scripts=['countdown.js','translations.js','i18n.js','auth.js','shop.js','storefront.js','store-cart.js','launch.js'];
+const styles=['account.css','styles.css','hero.css','footer.css','legal.css','shop.css','storefront.css','launch.css','shirt-viewer.css'];
+const scripts=['countdown.js','translations.js','i18n.js','auth.js','shop.js','storefront.js','store-cart.js','launch.js','shirt-viewer.js'];
 const catalog=JSON.parse(await readFile(path.join(root,'catalog.json'),'utf8'));
 for(const p of catalog.products){
   if(!p.id||!Number.isSafeInteger(p.priceCents)||p.priceCents<=0||!p.sizes.length)throw new Error('Invalid catalog entry');
   for(const file of p.images){if(!(await stat(path.join(root,file))).isFile())throw new Error('Missing product image');}
+  const modelPath=path.join(root,'assets/models',p.id+'.glb');
+  const model=await readFile(modelPath);
+  if(model.length<28||model.toString('ascii',0,4)!=='glTF'||model.readUInt32LE(4)!==2||model.readUInt32LE(8)!==model.length||model.readUInt32LE(16)!==0x4e4f534a)throw new Error(`Invalid 3D asset: ${p.id}`);
+  const scene=JSON.parse(model.toString('utf8',20,20+model.readUInt32LE(12)).trim());
+  if(!scene.meshes?.some(mesh=>mesh.primitives?.some(primitive=>Number.isInteger(primitive.attributes?.POSITION)))||!scene.buffers?.length)throw new Error(`Missing 3D geometry: ${p.id}`);
+  if(scene.buffers.some(buffer=>buffer.uri)||(scene.images||[]).some(image=>!Number.isInteger(image.bufferView)))throw new Error(`3D asset must be self-contained: ${p.id}`);
 }
 // Validate file references without confusing real application routes with files.
 for(const [page,html] of documents){

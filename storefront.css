@@ -18,3 +18,10 @@
 .logo-layer.layer-11{transform:translateZ(12.100000000000001px);filter:invert(1) opacity(1);}
 
 .card-pay-button{display:flex;align-items:center;justify-content:center;width:50%;min-height:48px;background:#171717;color:white;border:0;font-size:14px;font-weight:600;border-radius:2px}.card-pay-button:disabled{cursor:not-allowed;opacity:.65}
+
+/* Authentic payment vector assets: no text approximations or colour filters. */
+.payment-mark,.product-information .payment-mark{display:block;flex:0 0 auto;width:54px;min-width:0;height:36px;padding:0;border:0;border-radius:3px;background:#fff;overflow:hidden}
+.payment-mark img{width:100%;height:100%;max-width:none;object-fit:contain;filter:none}
+.paypal-button>.paypal-logo{width:90px;height:26px;object-fit:contain;filter:none}
+.mini-cards img{width:42px;height:28px;object-fit:contain;filter:none}
+@media(max-width:700px){.payment-mark,.product-information .payment-mark{width:48px;height:32px}.payment-marks{gap:6px}}

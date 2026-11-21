@@ -10,8 +10,10 @@
 <link rel="preload" href="/assets/fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/storefront.css">
+<link rel="stylesheet" href="/shirt-viewer.css">
 <script src="/translations.js" defer></script>
 <script src="/i18n.js" defer></script>
+<link rel="stylesheet" href="/account.css">
 <script src="/auth.js" defer></script>
 <script src="/storefront.js" type="module"></script>
 </head>
@@ -29,6 +31,8 @@
 <div id="product-loading" class="page-loading" role="status"><span data-de="Produkt wird geladen …" data-en="Loading product …" >Produkt wird geladen …</span></div>
 <section class="product-layout" id="product-layout" hidden>
 <div class="product-gallery"><button type="button" class="main-product-photo" id="zoom-photo" aria-label="Produktbild vergrößern" data-aria-de="Produktbild vergrößern" data-aria-en="Enlarge product photo"><img id="product-main-image" width="1200" height="1200" alt=""></button>
+<div class="product-viewer-panel" id="product-3d-view" hidden></div>
+<div class="gallery-navigation"><button type="button" data-gallery-step="-1" aria-label="Vorherige Ansicht" data-aria-de="Vorherige Ansicht" data-aria-en="Previous view">←</button><output id="gallery-position" aria-live="polite"></output><button type="button" data-gallery-step="1" aria-label="Nächste Ansicht" data-aria-de="Nächste Ansicht" data-aria-en="Next view">→</button></div>
 <div class="gallery-thumbs" id="product-thumbnails"></div>
 <p class="image-caption" id="product-image-caption"></p>
 </div>
@@ -51,10 +55,10 @@
 <p class="form-error" id="product-error" role="alert" hidden></p>
 <button class="button-dark add-to-bag" type="submit"><span data-de="In den Warenkorb" data-en="Add to bag" >In den Warenkorb</span></button>
 <div class="express-divider"><span><span data-de="Express-Checkout" data-en="Express checkout" >Express-Checkout</span></span></div>
-<button type="button" class="paypal-button" id="product-paypal" aria-describedby="payment-availability"><span class="paypal-logo">Pay<span>Pal</span></span></button>
+<button type="button" class="paypal-button" id="product-paypal" aria-describedby="payment-availability"><img class="paypal-logo" src="/assets/payments/paypal-wordmark.svg" alt="PayPal" width="90" height="26"></button>
 <p class="payment-availability" id="payment-availability"><span data-de="Shop-Vorschau · Zahlungen sind noch nicht freigeschaltet." data-en="Collection preview · Payments are not open yet." >Shop-Vorschau · Zahlungen sind noch nicht freigeschaltet.</span></p>
 </form>
-<div class="payment-marks" aria-label="Geplante Zahlungsmöglichkeiten" data-aria-de="Geplante Zahlungsmöglichkeiten" data-aria-en="Planned payment options"><span class="payment-mark paypal-mark">PayPal</span><span class="payment-mark visa-mark">VISA</span><span class="payment-mark master-mark" aria-label="Mastercard"><i></i><i></i></span><span class="payment-mark apple-mark">Apple Pay</span><span class="payment-mark google-mark"><b>G</b> Pay</span></div>
+<div class="payment-marks" aria-label="Geplante Zahlungsmöglichkeiten" data-aria-de="Geplante Zahlungsmöglichkeiten" data-aria-en="Planned payment options"><span class="payment-mark"><img src="/assets/payments/paypal.svg" alt="PayPal" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/visa.svg" alt="Visa" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/mastercard.svg" alt="Mastercard" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/apple-pay.svg" alt="Apple Pay" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/google-pay.svg" alt="Google Pay" width="120" height="80" loading="lazy" decoding="async"></span></div>
 <button type="button" class="product-favourite button-light" id="product-favourite"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m12 21-8.2-8.2a5.3 5.3 0 0 1 7.5-7.5l.7.7.7-.7a5.3 5.3 0 0 1 7.5 7.5L12 21Z"/></svg><span data-de="Zu den Favoriten" data-en="Save to favourites" >Zu den Favoriten</span></button>
 <div class="product-description">
 <p id="product-description"></p>
@@ -116,7 +120,7 @@
 <div>
 <p data-de="Zahlungsarten zum Launch" data-en="Payment options at launch" >Zahlungsarten zum Launch</p>
 <small data-de="Verfügbarkeit wird beim Checkout bestätigt." data-en="Availability will be confirmed at checkout." >Verfügbarkeit wird beim Checkout bestätigt.</small></div>
-<div class="payment-marks" aria-label="Geplante Zahlungsmöglichkeiten" data-aria-de="Geplante Zahlungsmöglichkeiten" data-aria-en="Planned payment options"><span class="payment-mark paypal-mark">PayPal</span><span class="payment-mark visa-mark">VISA</span><span class="payment-mark master-mark" aria-label="Mastercard"><i></i><i></i></span><span class="payment-mark apple-mark">Apple Pay</span><span class="payment-mark google-mark"><b>G</b> Pay</span></div>
+<div class="payment-marks" aria-label="Geplante Zahlungsmöglichkeiten" data-aria-de="Geplante Zahlungsmöglichkeiten" data-aria-en="Planned payment options"><span class="payment-mark"><img src="/assets/payments/paypal.svg" alt="PayPal" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/visa.svg" alt="Visa" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/mastercard.svg" alt="Mastercard" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/apple-pay.svg" alt="Apple Pay" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/google-pay.svg" alt="Google Pay" width="120" height="80" loading="lazy" decoding="async"></span></div>
 </div>
 <div class="footer-legal"><small>© 2026 DVN CLOTHING</small>
 <nav><a href="/impressum.html"><span data-de="Impressum" data-en="Legal notice" >Impressum</span></a><a href="/terms.html"><span data-de="Nutzungsbedingungen" data-en="Terms" >Nutzungsbedingungen</span></a><a href="/privacy.html"><span data-de="Datenschutz" data-en="Privacy" >Datenschutz</span></a></nav>
@@ -171,7 +175,7 @@
 <dialog class="account-dialog" id="account-dialog" aria-labelledby="account-title" aria-describedby="account-summary">
 
 <div class="account-top">
-      <img src="/assets/dvn-wordmark.png" width="1038" height="453" alt="DVN CLOTHING">
+      <img src="/assets/brand/dvn-mail-wordmark.png" width="96" height="40" alt="DVN CLOTHING">
       <button type="button" class="account-close" data-account-close aria-label="Schließen" data-aria-de="Schließen" data-aria-en="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg></button>
     </div>
 

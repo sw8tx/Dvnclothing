@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="/storefront.css">
 <script src="/translations.js" defer></script>
 <script src="/i18n.js" defer></script>
+<link rel="stylesheet" href="/account.css">
 <script src="/auth.js" defer></script>
 <script src="/storefront.js" type="module"></script>
 </head>
@@ -38,7 +39,7 @@
 <section class="checkout-details" aria-label="Checkout">
 <div class="express-checkout">
 <p>Express Checkout</p>
-<div><button type="button" class="card-pay-button" disabled><span data-de="Kreditkarte" data-en="Credit card">Kreditkarte</span></button><button type="button" class="paypal-button" data-checkout-method="paypal"><span class="paypal-logo">Pay<span>Pal</span></span></button></div>
+<div><button type="button" class="card-pay-button" disabled><span data-de="Kreditkarte" data-en="Credit card">Kreditkarte</span></button><button type="button" class="paypal-button" data-checkout-method="paypal"><img class="paypal-logo" src="/assets/payments/paypal-wordmark.svg" alt="PayPal" width="90" height="26"></button></div>
 <span class="small muted"><span data-de="Nach Zahlungsfreigabe verfügbar" data-en="Available once payments open" >Nach Zahlungsfreigabe verfügbar</span></span></div>
 <div class="checkout-step">
 <h2><span data-de="Kontakt" data-en="Contact" >Kontakt</span></h2>
@@ -57,7 +58,7 @@
 <section class="checkout-step">
 <h2><span data-de="Zahlung" data-en="Payment" >Zahlung</span></h2>
 <div class="payment-choice"><span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="1"/><path d="M8 10V6a4 4 0 0 1 8 0v4"/></svg><span data-de="Kredit- / Debitkarte" data-en="Credit / debit card" >Kredit- / Debitkarte</span></span>
-<div class="mini-cards"><b>VISA</b><span class="master-mark"><i></i><i></i></span></div>
+<div class="mini-cards"><img src="/assets/payments/visa.svg" alt="Visa" width="120" height="80"><img src="/assets/payments/mastercard.svg" alt="Mastercard" width="120" height="80"></div>
 </div>
 <p data-de="Kartenzahlung und Express-Checkout werden vor dem Verkaufsstart eingerichtet. Aktuell werden keine Zahlungsdaten erfasst." data-en="Card payments and express checkout will be set up before sales open. Payment details are not collected at this stage." class="muted small">Kartenzahlung und Express-Checkout werden vor dem Verkaufsstart eingerichtet. Aktuell werden keine Zahlungsdaten erfasst.</p>
 <button type="button" class="button-dark" id="checkout-pay" disabled><span data-de="Zahlung noch nicht verfügbar" data-en="Payment not available yet" >Zahlung noch nicht verfügbar</span></button>
@@ -76,7 +77,7 @@
 <div class="order-total"><dt><span data-de="Gesamt inkl. Versand" data-en="Total including shipping" >Gesamt inkl. Versand</span></dt><dd><span>EUR</span> <strong data-order-total>0,00 €</strong></dd></div>
 </dl>
 <p data-de="Noch keine Bestellung. Versand nach Deutschland ist eingerechnet; Rabatte wurden noch nicht angewendet." data-en="This is not an order yet. Shipping to Germany is included; discounts have not been applied." class="muted small">Noch keine Bestellung. Versand nach Deutschland ist eingerechnet; Rabatte wurden noch nicht angewendet.</p>
-<div class="payment-marks" aria-label="Geplante Zahlungsmöglichkeiten" data-aria-de="Geplante Zahlungsmöglichkeiten" data-aria-en="Planned payment options"><span class="payment-mark paypal-mark">PayPal</span><span class="payment-mark visa-mark">VISA</span><span class="payment-mark master-mark" aria-label="Mastercard"><i></i><i></i></span><span class="payment-mark apple-mark">Apple Pay</span><span class="payment-mark google-mark"><b>G</b> Pay</span></div>
+<div class="payment-marks" aria-label="Geplante Zahlungsmöglichkeiten" data-aria-de="Geplante Zahlungsmöglichkeiten" data-aria-en="Planned payment options"><span class="payment-mark"><img src="/assets/payments/paypal.svg" alt="PayPal" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/visa.svg" alt="Visa" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/mastercard.svg" alt="Mastercard" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/apple-pay.svg" alt="Apple Pay" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/google-pay.svg" alt="Google Pay" width="120" height="80" loading="lazy" decoding="async"></span></div>
 </aside>
 </div>
 </main>
@@ -102,7 +103,7 @@
 <div>
 <p data-de="Zahlungsarten zum Launch" data-en="Payment options at launch" >Zahlungsarten zum Launch</p>
 <small data-de="Verfügbarkeit wird beim Checkout bestätigt." data-en="Availability will be confirmed at checkout." >Verfügbarkeit wird beim Checkout bestätigt.</small></div>
-<div class="payment-marks" aria-label="Geplante Zahlungsmöglichkeiten" data-aria-de="Geplante Zahlungsmöglichkeiten" data-aria-en="Planned payment options"><span class="payment-mark paypal-mark">PayPal</span><span class="payment-mark visa-mark">VISA</span><span class="payment-mark master-mark" aria-label="Mastercard"><i></i><i></i></span><span class="payment-mark apple-mark">Apple Pay</span><span class="payment-mark google-mark"><b>G</b> Pay</span></div>
+<div class="payment-marks" aria-label="Geplante Zahlungsmöglichkeiten" data-aria-de="Geplante Zahlungsmöglichkeiten" data-aria-en="Planned payment options"><span class="payment-mark"><img src="/assets/payments/paypal.svg" alt="PayPal" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/visa.svg" alt="Visa" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/mastercard.svg" alt="Mastercard" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/apple-pay.svg" alt="Apple Pay" width="120" height="80" loading="lazy" decoding="async"></span><span class="payment-mark"><img src="/assets/payments/google-pay.svg" alt="Google Pay" width="120" height="80" loading="lazy" decoding="async"></span></div>
 </div>
 <div class="footer-legal"><small>© 2026 DVN CLOTHING</small>
 <nav><a href="/impressum.html"><span data-de="Impressum" data-en="Legal notice" >Impressum</span></a><a href="/terms.html"><span data-de="Nutzungsbedingungen" data-en="Terms" >Nutzungsbedingungen</span></a><a href="/privacy.html"><span data-de="Datenschutz" data-en="Privacy" >Datenschutz</span></a></nav>
@@ -157,7 +158,7 @@
 <dialog class="account-dialog" id="account-dialog" aria-labelledby="account-title" aria-describedby="account-summary">
 
 <div class="account-top">
-      <img src="/assets/dvn-wordmark.png" width="1038" height="453" alt="DVN CLOTHING">
+      <img src="/assets/brand/dvn-mail-wordmark.png" width="96" height="40" alt="DVN CLOTHING">
       <button type="button" class="account-close" data-account-close aria-label="Schließen" data-aria-de="Schließen" data-aria-en="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg></button>
     </div>
 
