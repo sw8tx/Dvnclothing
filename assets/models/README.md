@@ -1,50 +1,50 @@
-# DVN interactive garment visualisations
+# DVN interactive on-body visualisations
 
-These GLB files are secondary, approximate 3D garment visualisations. Original
-product photography remains the first gallery item and the product reference.
-The viewer labels approximate fit, folds and unphotographed rear surfaces in
-German and English. These are garments, not reconstructed people or fit scans.
+All five GLBs contain a complete, textured 3D person wearing the corresponding
+shirt. The person and garment rotate together; this is actual mesh geometry,
+not a spinning photograph or standalone floating tee. Original product photos
+remain gallery item 1; the on-body viewer is item 2.
 
-## Geometry provenance
+## Source and reproducibility
 
-The base garment geometry was generated through the Higgsfield connector with
-SAM 3 3D (`sam_3_3d`, `export_textured_glb: true`, seed 42), using the existing
-DVN `assets/products/blue-sunshine.jpg` photograph. Job:
-`34a2513d-267d-4587-886d-2fdb00a38a88` (2026-11-21).
+Higgsfield SAM 3 3D (`sam_3_3d`, textured GLB, seed 42) reconstructed the person
+from the existing `assets/lookbook/blue-mirage-black.jpg` AI styling image.
+Job: `665a4029-dd33-48ae-96b7-77dab3a4103e`, 2026-11-21.
 
-Source result:
-https://d8j0ntlcm91z4.cloudfront.net/user_3KQKDKor3OFgk9U0A6ZlXQtufXf/hf_20261121_185924_34a2513d-267d-4587-886d-2fdb00a38a88.glb
+Source GLB:
+https://d8j0ntlcm91z4.cloudfront.net/user_3KQKDKor3OFgk9U0A6ZlXQtufXf/hf_20261121_194819_665a4029-dd33-48ae-96b7-77dab3a4103e.glb
 
-The generated mesh has 6,104 triangular faces and real depth. Its generated
-textures repeated the front print onto the rear, so they were rejected. Blender
-4.3.2 was used to replace those materials with projections from the original
-DVN product photographs. Source silhouettes constrain UV coordinates so photo
-backgrounds are not projected onto sleeves. The same approximate garment mesh
-is reused for all five variants; it is not a verified garment pattern.
+Rebuild with Blender 4.3.2:
 
-## Materials
+```sh
+blender -b --python scripts/models/build-worn.py -- /path/to/person-source.glb
+```
 
-| GLB | Front photo | Back |
-| --- | --- | --- |
-| blue-mirage-black.glb | blue-mirage-black.jpg | Neutral dark fabric; not photographed |
-| blue-mirage-white.glb | blue-mirage-white.jpg | Neutral light fabric; not photographed |
-| define-your-vision.glb | define-your-vision.jpg | Actual define-your-vision-back.jpg photograph |
-| blue-sunshine.glb | blue-sunshine.jpg | Neutral dark fabric; not photographed |
-| purple-sunshine.glb | purple-sunshine.jpg | Neutral light fabric; not photographed |
+Set `DVN_RENDER_DIR` to an existing directory to render front, side and back
+checks. `DVN_ONLY` optionally restricts the build to one product ID.
 
-All referenced originals are under `assets/products/`. The photographic prints
-are preserved rather than regenerated. Geometry, drape and unphotographed sides
-are illustrative. Do not use these files to claim exact sizing or construction.
+The same reconstructed person and approximate garment geometry are reused for
+all five products. Skin, hair, trousers and footwear retain the generated body
+texture. Garment faces receive the corresponding original product photograph;
+the Define Your Vision rear uses its separate original rear photograph. Other
+backs are plain illustrative fabric. A geometric hem cut and local subdivision
+keep material boundaries clean. Each self-contained GLB embeds its JPEG textures.
+The nominal 1.8m model height is an illustrative scale, not a measurement or size
+recommendation. The figure, drape, hidden surfaces and footwear are generated.
 
-Each GLB embeds its mesh and JPEG textures. There are no remote texture,
-compression-decoder or other runtime asset dependencies. Google model-viewer
-4.0.0 is self-hosted in `assets/vendor/`; the module is imported only when the
-customer selects the 3D gallery item. No-WebGL devices immediately retain the
-original product photo. Network/model failures offer a retry and keep the photo.
-The build validates every catalog product's GLB header, geometry and embedded
-resources before deployment. All viewer assets remain behind the preview gate.
+This is not a scanned person or a verified fit simulation. The viewer explicitly
+labels the approximation in German and English. Actual product photography is
+the reference for print, colour, fit and construction.
 
-The CSP permits only the pinned model-viewer 4.0.0 shadow stylesheet via its
-SHA-256 hash, plus local `blob:` connections for GLB texture decoding. It does
-not allow arbitrary inline scripts/styles, external connections, or eval.
-Update the stylesheet hash when upgrading the bundled viewer.
+## Viewer and deployment
+
+Google model-viewer 4.0.0 is self-hosted in `assets/vendor/`. The viewer loads only
+when selected. Drag, touch, arrow buttons, keyboard controls and front reset
+rotate the whole figure. Unsupported devices and failed requests retain the
+original product photo and provide an appropriate message/retry.
+
+The build validates every catalog GLB, real geometry and embedded resources.
+Viewer assets remain password-protected, with private/no-store responses.
+CSP permits only the pinned model-viewer shadow stylesheet hash and local blob
+connections for embedded texture decoding. No external runtime calls, eval or
+arbitrary inline styles/scripts are introduced.

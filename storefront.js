@@ -131,7 +131,7 @@ function productCard(p){
 }
 function productImages(){
   const images=currentProduct.images.map((src,i)=>({src,label:i===0?t('Produktansicht','Product view'):t('Rückansicht','Back view'),isModel:false}));
-  images.splice(1,0,{src:currentProduct.image,label:t('3D-Ansicht','3D view'),is3D:true});
+  images.splice(1,0,{src:currentProduct.image,label:t('3D am Model','3D on model'),is3D:true});
   if(currentProduct.id!=='define-your-vision')images.push({src:'/assets/lookbook/'+currentProduct.id+'.jpg',label:t('KI-generierte Styling-Visualisierung','AI-generated styling visualisation'),isModel:true});
   return images;
 }
@@ -140,7 +140,7 @@ function showProductImage(index){
   $('#zoom-photo').hidden=Boolean(item.is3D);
   if(item.is3D){
     shirtViewer ||= createShirtViewer($('#product-3d-view'),currentProduct);
-    shirtViewer.show();$('#product-image-caption').textContent=t('360° · Interaktive Shirtansicht','360° · Interactive tee view');
+    shirtViewer.show();$('#product-image-caption').textContent=t('360° · Shirt am Model drehen','360° · Rotate the model wearing the tee');
   }else{
     shirtViewer?.hide();const main=$('#product-main-image');main.src=item.src;main.alt=currentProduct.name+' – '+item.label;main.classList.toggle('is-lookbook',item.isModel);$('#product-image-caption').textContent=item.isModel?item.label:t('Original-Produktfoto','Original product photo');
   }

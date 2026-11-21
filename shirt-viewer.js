@@ -1,8 +1,8 @@
 // The viewer and models are served from DVN. No third-party requests are made.
 let viewerModule;
 const copy = {
-  de: { title: '3D-Ansicht', hint: 'Ziehen zum Drehen · mit zwei Fingern zoomen', left: 'Shirt nach links drehen', right: 'Shirt nach rechts drehen', reset: 'Vorderseite', loading: '3D-Ansicht wird geladen …', error: 'Die 3D-Ansicht konnte nicht geladen werden. Du siehst weiterhin das Originalfoto.', unsupported: 'Dein Browser unterstützt die 3D-Ansicht nicht. Du siehst stattdessen das Originalfoto.', retry: 'Erneut laden', note: 'KI-generierte 3D-Visualisierung mit Originalmotiv. Schnitt, Falten und nicht fotografierte Rückseiten sind angenähert. Maßgeblich sind die Originalfotos.' },
-  en: { title: '3D view', hint: 'Drag to rotate · pinch to zoom', left: 'Rotate tee left', right: 'Rotate tee right', reset: 'Front view', loading: 'Loading 3D view …', error: 'The 3D view could not be loaded. The original photo is still shown.', unsupported: 'Your browser does not support the 3D view. The original photo is shown instead.', retry: 'Try again', note: 'AI-generated 3D visualisation with original artwork. Fit, folds and unphotographed backs are approximate. Refer to the original photos.' }
+  de: { title: '3D am Model', hint: 'Ziehen zum Drehen · mit zwei Fingern zoomen', left: 'Model nach links drehen', right: 'Model nach rechts drehen', reset: 'Vorderseite', loading: '3D-Ansicht wird geladen …', error: 'Die 3D-Ansicht konnte nicht geladen werden. Du siehst weiterhin das Originalfoto.', unsupported: 'Dein Browser unterstützt die 3D-Ansicht nicht. Du siehst stattdessen das Originalfoto.', retry: 'Erneut laden', note: 'KI-generierte Person mit getragenem Shirt. Körper, Passform und nicht fotografierte Seiten sind angenähert. Die Originalfotos zeigen das tatsächliche Produkt.' },
+  en: { title: '3D on model', hint: 'Drag to rotate · pinch to zoom', left: 'Rotate model left', right: 'Rotate model right', reset: 'Front view', loading: 'Loading 3D view …', error: 'The 3D view could not be loaded. The original photo is still shown.', unsupported: 'Your browser does not support the 3D view. The original photo is shown instead.', retry: 'Try again', note: 'AI-generated person wearing the tee. Body, fit and unphotographed sides are approximate. Refer to the original photos for the actual product.' }
 };
 const node = (tag, cls, text) => { const el = document.createElement(tag); if (cls) el.className = cls; if (text) el.textContent = text; return el; };
 export function createShirtViewer(container, product) {
@@ -12,9 +12,9 @@ export function createShirtViewer(container, product) {
   const status = node('p', 'shirt-viewer-status'); status.setAttribute('role', 'status');
   const fallback = node('img', 'shirt-viewer-fallback'); fallback.src = product.image; fallback.alt = product.name;
   const model = node('model-viewer');
-  model.setAttribute('alt', product.name + ' · 3D');
+  model.setAttribute('alt', product.name + ' · ' + words().title);
   model.setAttribute('camera-controls', ''); model.setAttribute('touch-action', 'pan-y');
-  model.setAttribute('camera-orbit', '0deg 80deg auto');
+  model.setAttribute('camera-orbit', '0deg 90deg auto');
   model.setAttribute('min-camera-orbit', 'auto 20deg auto'); model.setAttribute('max-camera-orbit', 'auto 160deg auto');
   model.setAttribute('shadow-intensity', '0.35'); model.setAttribute('exposure', '1.1');
   model.setAttribute('interaction-prompt', 'none'); model.setAttribute('loading', 'eager');
@@ -29,7 +29,7 @@ export function createShirtViewer(container, product) {
   controls.append(left, reset, right); stage.append(fallback, model, status, retry); section.append(stage, controls, hint, note); container.append(section);
   let started = false, ready = false, failed = false, unsupported = false, timeout;
   const sync = () => {
-    const w = words(); section.setAttribute('aria-label', w.title); hint.textContent = w.hint; note.textContent = w.note;
+    const w = words(); section.setAttribute('aria-label', w.title); model.setAttribute('alt', product.name + ' · ' + w.title); hint.textContent = w.hint; note.textContent = w.note;
     left.setAttribute('aria-label', w.left); right.setAttribute('aria-label', w.right); reset.textContent = w.reset; retry.textContent = w.retry;
     status.textContent = unsupported ? w.unsupported : failed ? w.error : w.loading;
     hint.hidden = unsupported || failed; controls.hidden = unsupported || failed;
@@ -61,7 +61,7 @@ export function createShirtViewer(container, product) {
     model.cameraOrbit = `${orbit.theta * 180 / Math.PI + degrees}deg ${orbit.phi * 180 / Math.PI}deg ${orbit.radius}m`;
   };
   left.addEventListener('click', () => turn(-30)); right.addEventListener('click', () => turn(30));
-  reset.addEventListener('click', () => { model.cameraOrbit = '0deg 80deg auto'; model.cameraTarget = 'auto auto auto'; });
+  reset.addEventListener('click', () => { model.cameraOrbit = '0deg 90deg auto'; model.cameraTarget = 'auto auto auto'; });
   retry.addEventListener('click', start);
   // Native model-viewer keyboard controls support arrows; Home restores the front.
   model.addEventListener('keydown', event => { if (event.key === 'Home') { event.preventDefault(); reset.click(); } });
