@@ -131,7 +131,8 @@ function productCard(p){
 }
 function productImages(){
   const images=currentProduct.images.map((src,i)=>({src,label:i===0?t('Produktansicht','Product view'):t('Rückansicht','Back view'),isModel:false}));
-  images.splice(1,0,{src:currentProduct.image,label:t('3D am Model','3D on model'),is3D:true});
+  // On-body meshes are withheld until their geometry and textures pass visual review.
+  // Keep original product and styling photos available in the gallery.
   if(currentProduct.id!=='define-your-vision')images.push({src:'/assets/lookbook/'+currentProduct.id+'.jpg',label:t('KI-generierte Styling-Visualisierung','AI-generated styling visualisation'),isModel:true});
   return images;
 }
