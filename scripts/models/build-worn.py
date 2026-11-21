@@ -79,6 +79,7 @@ for name,box,base in variants:
      if max(photo_pixels[offset:offset+3])<.55: break
      px+=(w/2-px)*.025
    uv.data[li].uv=(px/w,1-py/h)
+ for polygon in obj.data.polygons: polygon.use_smooth=True
  # SAM uses unit-height bounds. Make the illustrative figure 1.8m tall.
  obj.scale=(1.8,)*3;bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
  bpy.ops.export_scene.gltf(filepath=str(root/'assets/models'/f'{name}.glb'),export_format='GLB',use_selection=True,export_animations=False,export_cameras=False,export_lights=False,export_image_format='JPEG',export_jpeg_quality=90)
