@@ -218,10 +218,26 @@ test('guests get the countdown first and cannot fetch storefront, product, check
   }
 });
 
+test('returning preview visitors still see the launch entrance at the homepage', async () => {
+  const cookie = await session();
+  for (const path of ['/', '/?preview=required&next=%2Fshop']) {
+    const { response, fixture } = await gate(path, { cookie });
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), 'PUBLIC COUNTDOWN');
+    assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
+    assert.equal(response.headers.get('CDN-Cache-Control'), 'no-store');
+    assert.equal(fixture.fetched[0].path, '/launch');
+  }
+  const result = await unlock('dvnclothing', { cookie });
+  assert.equal((await result.json()).redirect, '/shop');
+  const shop = (await gate('/shop', { cookie: cookieFrom(result) })).response;
+  assert.equal(await shop.text(), 'PRIVATE STOREFRONT');
+});
+
 test('valid preview sessions serve the intended documents and disable all shared and browser caching', async () => {
   const cookie = await session();
   for (const [path, body] of [
-    ['/', 'PRIVATE STOREFRONT'], ['/shop', 'PRIVATE STOREFRONT'],
+    ['/shop', 'PRIVATE STOREFRONT'],
     ['/index.html', 'PRIVATE STOREFRONT'], ['/products/ink-black', 'PRIVATE PRODUCT'],
     ['/checkout', 'PRIVATE CHECKOUT'], ['/catalog.json', '{"products":["private"]}'],
   ]) {

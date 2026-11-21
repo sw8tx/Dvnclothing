@@ -123,6 +123,9 @@ async function previewMiddleware(context, pages) {
   }
   const path = url.pathname;
   try {
+    // The homepage is always the launch entrance, including for returning
+    // preview visitors. Successful password entry continues to /shop.
+    if (path === '/') return await asset(context, '/launch', { html: true, varyCookie: true });
     if (publicPages.has(path)) return await asset(context, publicPages.get(path), { html: true });
     if (mailPage.test(path)) return await asset(context, path.replace(/\.html$/, ''), { html: true });
     if (publicCode.test(path) || publicImages.test(path) || fontAsset.test(path) || path === '/assets/fonts/OFL-Manrope.txt') {
@@ -134,7 +137,6 @@ async function previewMiddleware(context, pages) {
     const privateAsset = privateCode.test(path) || privateImages.test(path) || privateModels.test(path) || privateViewer.test(path) || path === '/catalog.json';
     if (!store && !product && !checkout && !privateAsset) return error(404);
     const unlocked = await hasPreview(request, context.env);
-    if (path === '/' && !unlocked) return await asset(context, '/launch', { html: true, varyCookie: true });
     if (!unlocked) return privateAsset ? previewJson({ error: 'preview_required' }, 401) : locked(request);
     if (path === '/catalog.json') return privateDocument(request, pages, '/catalog.json');
     if (privateAsset) return await asset(context, path, { privateContent: true, varyCookie: true });
