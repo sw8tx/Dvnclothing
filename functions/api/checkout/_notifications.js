@@ -1,4 +1,3 @@
-import { storedDelivery } from './_details.js';
 import { catalog,dbFor } from './_commerce.js';
 import { CheckoutError } from './_lib.js';
 
@@ -34,22 +33,20 @@ export function retainedShipping(value,method) {
     {name:text(s.name),address:{line1:text(s.line1),line2:text(s.line2),city:text(s.city),state:text(s.region),postal_code:text(s.postalCode),country:text(s.country)}};
 }
 export function notificationBody(order,{simulation=false}={}) {
-  const s=shippingDetails(JSON.parse(order.fulfilment_json||'null'),order.method);
   const items=JSON.parse(order.items_json).map(l=>`${l.quantity} × ${clean(catalog.products.find(p=>p.id===l.productId)?.name||l.productId,70)} · ${clean(l.size,5)} · ${money(l.unitPriceCents*l.quantity)}`);
   const fields=[
     {name:'Bestellnummer',value:clean(order.id,80)},
     ...Array.from({length:Math.ceil(items.length/7)},(_,i)=>({name:i?'Weitere Artikel':'Artikel',value:items.slice(i*7,i*7+7).join('\n')})),
     {name:'Beträge',value:`Artikel: ${money(order.subtotal_cents)}\nRabatt: ${money(order.discount_cents)}\nVersand: ${money(order.shipping_cents)}\nGesamt: ${money(order.total_cents)}`},
-    {name:'Kontakt',value:[clean(order.email,254)||'—',storedDelivery(order)?.phone?('Telefon: '+clean(storedDelivery(order).phone,30)):null].filter(Boolean).join('\n')},
-    {name:'Lieferadresse',value:[s.name,s.line1,s.line2,[s.postalCode,s.city].filter(Boolean).join(' '),s.region,s.country].filter(Boolean).map(v=>clean(v)).join('\n').slice(0,1024)||'Adresse prüfen'},
     {name:'Zahlung',value:(order.method==='paypal'?'PayPal':'Kredit-/Debitkarte über Stripe')+'\n'+(simulation?'Nur simuliert – keine Zahlung':order.mode==='test'?'Sandbox – keine echte Zahlung':'Zahlung vom Anbieter bestätigt')},
-    {name:'Transaktion',value:clean(order.payment_id,100)||'Keine – Simulation'}
+    {name:'Transaktion',value:clean(order.payment_id,100)||'Keine – Simulation'},
+    {name:'Bestelldaten',value:'Kundenkontakt und Lieferadresse nur im geschützten Betreiberbereich einsehen.'}
   ];
   return {username:'DVN Bestellungen',allowed_mentions:{parse:[],users:[],roles:[]},embeds:[{
     title:simulation?'TESTBESTELLUNG – NICHT VERSENDEN':order.mode==='test'?'SANDBOX – NICHT VERSENDEN':'Neue bezahlte Bestellung',
     description:simulation?'Erfundene Daten. Keine Abbuchung, Bestellung oder Bestandsänderung.':'Im Betreiberbereich prüfen und nur bestätigte Live-Bestellungen versenden.',
     color:simulation||order.mode==='test'?0xe5a100:0x238636,fields,
-    footer:{text:'DVN CLOTHING · Keine Kartennummern oder Prüfcodes'},
+    footer:{text:'DVN CLOTHING · Keine persönlichen Lieferdaten oder Zahlungsdaten'},
     timestamp:new Date((order.paid_at||order.created_at)*1000).toISOString()
   }]};
 }

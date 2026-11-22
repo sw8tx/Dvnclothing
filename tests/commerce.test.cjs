@@ -185,12 +185,14 @@ test('Discord destination rejects non-Discord hosts, redirects, ports and inject
   assert.equal(discordURL(fakeWebhook),fakeWebhook+'?wait=true');
   for(const url of ['https://evil.test/api/webhooks/123/abc',fakeWebhook+'?thread_id=1',fakeWebhook+'#fragment',fakeWebhook.replace('discord.com','discord.com.evil.test'),fakeWebhook.replace('https:','http:'),fakeWebhook.replace('discord.com','name@discord.com'),fakeWebhook.replace('discord.com','discord.com:444')])assert.throws(()=>discordURL(url),{code:'notification_not_configured'});
 });
-test('Discord embeds preserve email and neutralize mentions; simulations never claim a payment',async()=>{
+test('Discord embeds contain no personal fulfilment data; simulations never claim a payment',async()=>{
   const {notificationBody,simulationOrder}=await import('../functions/api/checkout/_notifications.js');
   const order=simulationOrder('simulation-example');order.email='test@example.invalid';
+  order.checkout_details_json=JSON.stringify({...delivery(),phone:'+49123456789'});
   const body=notificationBody(order,{simulation:true});assert.deepEqual(body.allowed_mentions,{parse:[],users:[],roles:[]});
-  assert.match(body.embeds[0].title,/TESTBESTELLUNG/);assert.match(JSON.stringify(body),/test@example.invalid/);
-  assert.doesNotMatch(JSON.stringify(body),/card_number|cvv|client_secret/);assert.match(body.embeds[0].description,/Keine Abbuchung/);
+  assert.match(body.embeds[0].title,/TESTBESTELLUNG/);
+  assert.doesNotMatch(JSON.stringify(body),/test@example.invalid|Musterstraße|Musterstadt|TESTPERSON|49123456789|card_number|cvv|client_secret/);
+  assert.match(body.embeds[0].description,/Keine Abbuchung/);
 });
 test('paid transition atomically creates one durable Discord job, including after migration replay',async()=>{
   const {reserve}=await import('../functions/api/checkout/_commerce.js'),db=database(),u=await user();
@@ -309,8 +311,14 @@ test('PayPal receives the entered address and fixes shipping to that address',as
   await createPayment(env,order);db.sqlite.close();
 });
 
-test('optional delivery telephone is included in private fulfilment notifications only',async()=>{
-  const {notificationBody,simulationOrder}=await import('../functions/api/checkout/_notifications.js');
-  const order={...simulationOrder('simulation-phone'),checkout_details_json:JSON.stringify({...delivery(),phone:'+49123456789'})};
-  assert.match(notificationBody(order,{simulation:true}).embeds[0].fields.find(f=>f.name==='Kontakt').value,/Telefon: \+49123456789/);
+test('optional delivery telephone remains in protected order details',async()=>{
+  const {reserve}=await import('../functions/api/checkout/_commerce.js');
+  const {onRequestGet}=await import('../functions/api/admin/orders.js');
+  const db=database(),env={...activeEnv(db.env),COMMERCE_ADMIN_EMAILS:'owner@example.test'},u=await user('owner@example.test');
+  const input=selection();input.delivery={...delivery(),phone:'+49123456789'};
+  const order=await reserve(env,u,input);
+  db.sqlite.prepare("UPDATE shop_orders SET status='paid',fulfilment_json=? WHERE id=?").run(JSON.stringify({name:'Test Person',address:{line1:'Musterstraße 1',city:'Musterstadt',postal_code:'12345',country:'DE'}}),order.id);
+  const response=await onRequestGet({env,request:await request('/api/admin/orders',null,u.email)});
+  assert.equal(response.status,200);const body=await response.json();assert.equal(body.orders[0].phone,'+49123456789');
+  assert.equal(body.orders[0].shipping.address?.line1,undefined);assert.equal(body.orders[0].shipping.line1,'Musterstraße 1');db.sqlite.close();
 });
