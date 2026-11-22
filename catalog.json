@@ -40,7 +40,7 @@
         "en": "A look that stays with you. An eyes graphic meets blue DVN lettering on a black tee."
       },
       "family": "mirage",
-      "inventoryVerified": false,
+      "inventoryVerified": true,
       "gallery": [
         {
           "src": "/assets/products/blue-mirage-black-studio-v2.webp",
@@ -74,7 +74,12 @@
           },
           "generated": true
         }
-      ]
+      ],
+      "initialStock": {
+        "S": 5,
+        "M": 5,
+        "L": 5
+      }
     },
     {
       "id": "blue-mirage-white",
@@ -102,7 +107,7 @@
         "en": "Blue Mirage in white. The striking eyes graphic and blue lettering create the contrast."
       },
       "family": "mirage",
-      "inventoryVerified": false,
+      "inventoryVerified": true,
       "gallery": [
         {
           "src": "/assets/products/blue-mirage-white-studio-v2.webp",
@@ -136,7 +141,12 @@
           },
           "generated": true
         }
-      ]
+      ],
+      "initialStock": {
+        "S": 5,
+        "M": 5,
+        "L": 5
+      }
     },
     {
       "id": "define-your-vision",
@@ -164,7 +174,7 @@
         "en": "Your perspective. Your path. A charcoal tee with pared-back typography and our statement: Define Your Vision."
       },
       "family": "vision",
-      "inventoryVerified": false,
+      "inventoryVerified": true,
       "gallery": [
         {
           "src": "/assets/products/define-your-vision-studio-v2.webp",
@@ -198,7 +208,12 @@
           },
           "generated": true
         }
-      ]
+      ],
+      "initialStock": {
+        "S": 5,
+        "M": 5,
+        "L": 5
+      }
     },
     {
       "id": "blue-sunshine",
@@ -226,7 +241,7 @@
         "en": "Clean black. Bright cyan. Layered DVN lettering takes centre stage in this design."
       },
       "family": "sunshine",
-      "inventoryVerified": false,
+      "inventoryVerified": true,
       "gallery": [
         {
           "src": "/assets/products/blue-sunshine-studio-v2.webp",
@@ -260,7 +275,12 @@
           },
           "generated": true
         }
-      ]
+      ],
+      "initialStock": {
+        "S": 5,
+        "M": 5,
+        "L": 5
+      }
     },
     {
       "id": "purple-sunshine",
@@ -288,7 +308,7 @@
         "en": "Purple on white. Our Sunshine graphic brings the DVN wordmark together in an expressive colour combination."
       },
       "family": "sunshine",
-      "inventoryVerified": false,
+      "inventoryVerified": true,
       "gallery": [
         {
           "src": "/assets/products/purple-sunshine-studio-v2.webp",
@@ -322,7 +342,12 @@
           },
           "generated": true
         }
-      ]
+      ],
+      "initialStock": {
+        "S": 5,
+        "M": 5,
+        "L": 5
+      }
     }
   ]
 }

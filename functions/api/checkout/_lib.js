@@ -25,7 +25,7 @@ export function requestOrigin(request, post = false) {
 
 // Read the actual stream size: Content-Length can be absent or inaccurate.
 // No address, payment details or provider credentials belong in this payload.
-export async function readJson(request, { limit = 8192, timeoutMs = 5000 } = {}) {
+export async function readJson(request, { limit = 8192, timeoutMs = 5000, raw = false } = {}) {
   if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {
     throw new CheckoutError('invalid_request', 415);
   }
@@ -47,7 +47,8 @@ export async function readJson(request, { limit = 8192, timeoutMs = 5000 } = {})
       if (count > limit) throw new CheckoutError('payload_too_large', 413);
       text += decoder.decode(value, { stream: true });
     }
-    return JSON.parse(text + decoder.decode());
+    const body = text + decoder.decode();
+    return raw ? body : JSON.parse(body);
   };
   try {
     return await Promise.race([

@@ -4,7 +4,14 @@ const methods = new Map([
   ['/api/preview/unlock', ['POST']],
   ['/api/preview/logout', ['POST']],
   ['/api/checkout/config', ['GET']],
+  ['/api/checkout/inventory', ['GET']],
   ['/api/checkout/session', ['POST']],
+  ['/api/checkout/quote', ['POST']],
+  ['/api/checkout/order', ['GET', 'POST']],
+  ['/api/account/cart', ['GET', 'POST']],
+  ['/api/payments/return', ['GET']],
+  ['/api/payments/stripe', ['POST']],
+  ['/api/payments/paypal', ['POST']],
   ['/api/auth/start', ['GET', 'POST']],
   ['/api/auth/callback', ['GET']],
   ['/api/auth/session', ['GET']],
@@ -29,7 +36,8 @@ export async function onRequest(context) {
   const site = origin(request);
   const canonicalRedirect = url.pathname === '/api/auth/start' && request.method === 'GET';
   if (!site || (url.origin !== site && !canonicalRedirect)) return fail('invalid_host', 403);
-  if (request.method === 'POST' && request.headers.get('Origin') !== site) return fail('invalid_origin', 403);
+  const signedWebhook=['/api/payments/stripe','/api/payments/paypal'].includes(url.pathname);
+  if (request.method === 'POST' && !signedWebhook && request.headers.get('Origin') !== site) return fail('invalid_origin', 403);
   try {
     return noStore(await context.next());
   } catch {
