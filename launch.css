@@ -52,3 +52,22 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #3878
 @media(min-height:850px) and (min-width:700px){.launch-main{padding-top:95px;padding-bottom:110px}}
 @media(max-width:600px){.launch-header{padding:8px 16px;min-height:56px}.launch-main{padding:40px 24px 48px}.launch-hero{max-width:400px}.launch-wordmark{width:145px;margin-bottom:22px}.launch-intro{margin-top:44px}.launch-intro h1{font-size:28px}.launch-description{max-width:310px}.launch-access{margin-top:36px}.launch-footer{gap:12px;padding:18px 20px}.launch-footer small{width:100%;text-align:center}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+/* Continuous 3D rotation, independent of scrolling. */
+.launch-wordmark{perspective:900px}
+.launch-logo-object{display:block;position:relative;width:100%;aspect-ratio:400/164;transform-style:preserve-3d;animation:dvn-launch-logo-spin 16s linear infinite;will-change:transform}
+.launch-wordmark .launch-logo-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.launch-logo-layer.depth-0{transform:translateZ(-3.3px);opacity:1}
+.launch-logo-layer.depth-1{transform:translateZ(-2.7px);opacity:.3}
+.launch-logo-layer.depth-2{transform:translateZ(-2.1px);opacity:.3}
+.launch-logo-layer.depth-3{transform:translateZ(-1.5px);opacity:.3}
+.launch-logo-layer.depth-4{transform:translateZ(-0.9px);opacity:.3}
+.launch-logo-layer.depth-5{transform:translateZ(-0.3px);opacity:.3}
+.launch-logo-layer.depth-6{transform:translateZ(0.3px);opacity:.3}
+.launch-logo-layer.depth-7{transform:translateZ(0.9px);opacity:.3}
+.launch-logo-layer.depth-8{transform:translateZ(1.5px);opacity:.3}
+.launch-logo-layer.depth-9{transform:translateZ(2.1px);opacity:.3}
+.launch-logo-layer.depth-10{transform:translateZ(2.7px);opacity:.3}
+.launch-logo-layer.depth-11{transform:translateZ(3.3px);opacity:1}
+@keyframes dvn-launch-logo-spin{from{transform:rotateX(-8deg) rotateY(-18deg)}to{transform:rotateX(-8deg) rotateY(342deg)}}
+@media(prefers-reduced-motion:reduce){.launch-logo-object{animation:none;transform:none;will-change:auto}}

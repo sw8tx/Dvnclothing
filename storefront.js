@@ -349,10 +349,4 @@ try{
     bindFavourites();translate();applyFilter();
   }
 }catch{notify('Die Kollektion konnte nicht geladen werden. Bitte lade die Seite erneut.','The collection could not be loaded. Please reload the page.');const loading=$('#product-loading');if(loading)loading.textContent=t('Die Produktdaten sind gerade nicht erreichbar. Bitte lade die Seite erneut.','Product details are unavailable. Please reload the page.');}
-const logo=$('[data-logo-3d]');
-if(logo){
-  const reduced=matchMedia('(prefers-reduced-motion: reduce)');let pending=false;
-  const paint=()=>{pending=false;if(reduced.matches)return;const r=logo.parentElement.getBoundingClientRect();const p=Math.max(-1,Math.min(1,(innerHeight/2-r.top)/innerHeight));logo.style.transform=`rotateX(${-8+p*12}deg) rotateY(${-20+p*55}deg)`;};
-  const queue=()=>{if(!pending){pending=true;requestAnimationFrame(paint);}};
-  addEventListener('scroll',queue,{passive:true});reduced.addEventListener('change',()=>{if(reduced.matches)logo.style.transform='none';else queue();});queue();
-}
+
