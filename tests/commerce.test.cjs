@@ -5,13 +5,14 @@ const {DatabaseSync}=require('node:sqlite');
 const site='https://dvnclothing.com',secret='commerce-test-cookie-secret-32-characters';
 function database(){
   const sqlite=new DatabaseSync(':memory:');
-  for(const name of ['0002_profiles','0003_welcome_bonus','0004_account_links','0006_commerce','0007_order_notifications'])sqlite.exec(fs.readFileSync(require.resolve('../migrations/'+name+'.sql'),'utf8'));
+  for(const name of ['0002_profiles','0003_welcome_bonus','0004_account_links','0006_commerce','0007_order_notifications','0008_checkout_details'])sqlite.exec(fs.readFileSync(require.resolve('../migrations/'+name+'.sql'),'utf8'));
   const binding={prepare(sql){const stmt=sqlite.prepare(sql);return {bind(...args){return {
     first:async()=>stmt.get(...args)||null,
     all:async()=>({results:stmt.all(...args)}),run:async()=>({meta:stmt.run(...args)})};}};}};
   return {sqlite,env:{DVN_AUTH_DB:binding,AUTH_COOKIE_SECRET:secret}};
 }
-const selection=(quantity=1,method='card',code='')=>({method,code,items:[{productId:'blue-mirage-black',size:'M',quantity}]});
+const delivery=()=>({firstName:'Test',lastName:'Person',line1:'Musterstraße 1',line2:'',postalCode:'12345',city:'Musterstadt',country:'DE',phone:''});
+const selection=(quantity=1,method='card',code='')=>({method,code,delivery:delivery(),items:[{productId:'blue-mirage-black',size:'M',quantity}]});
 async function user(email='one@example.test',sub='email:'+email){
   return (await import('../functions/api/auth/_profile.js')).identityFromClaims({email,sub});
 }
@@ -126,14 +127,14 @@ test('Stripe raw-body signature rejects payload tampering, wrong secrets and old
 test('Stripe checkout charges exact discounted cents and only server-owned return URLs',async t=>{
   const {reserve}=await import('../functions/api/checkout/_commerce.js'),{createPayment}=await import('../functions/api/checkout/_providers.js');
   const db=database(),u=await user();await bonus(db,u);const env=activeEnv(db.env),o=await reserve(env,u,selection(3,'card','DVN-WELCOME'));
-  let calls=0;t.mock.method(globalThis,'fetch',async(url,opts)=>{calls++;assert.equal(url,'https://api.stripe.com/v1/checkout/sessions');
+  let calls=0;t.mock.method(globalThis,'fetch',async(url,opts)=>{calls++;if(url==='https://api.stripe.com/v1/customers'){assert.equal(opts.body.get('shipping[address][postal_code]'),'12345');assert.equal(opts.body.get('email'),u.email);assert.equal(opts.headers['Idempotency-Key'],o.id+'-customer');return Response.json({id:'cus_fixture'});}assert.equal(url,'https://api.stripe.com/v1/checkout/sessions');assert.equal(opts.body.get('customer'),'cus_fixture');assert.equal(opts.body.has('customer_email'),false);
     const form=opts.body;let amount=0;for(let i=0;i<3;i++)amount+=Number(form.get(`line_items[${i}][price_data][unit_amount]`));
     assert.equal(amount+Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')),o.total_cents);
     assert.equal(form.get('success_url'),site+'/api/payments/return?order='+o.id);assert.equal(opts.headers['Idempotency-Key'],o.id+'-create');
     return Response.json({id:'cs_test_1',url:'https://checkout.stripe.com/c/pay/cs_test_1'});
   });
   await createPayment(env,o);const updated=db.sqlite.prepare('SELECT * FROM shop_orders WHERE id=?').get(o.id);
-  await createPayment(env,updated);assert.equal(calls,1);db.sqlite.close();
+  await createPayment(env,updated);assert.equal(calls,2);db.sqlite.close();
 });
 test('duplicate Stripe notifications mark paid once without reserving additional stock',async t=>{
   const {reserve}=await import('../functions/api/checkout/_commerce.js'),{reconcile}=await import('../functions/api/checkout/_providers.js');
@@ -274,4 +275,42 @@ test('outbound integrations use Workers-compatible manual redirects and reject 3
   assert.equal(await deliverNotification(env,'redirect'),false);
   assert.equal(db.sqlite.prepare('SELECT status,last_error FROM shop_notifications').get().last_error,'discord_http_302');
   assert.equal(calls,4);db.sqlite.close();
+});
+
+test('delivery validation rejects incomplete or injected fields before reserving stock; contacts stay private',async()=>{
+  const {deliveryDetails}=await import('../functions/api/checkout/_details.js');
+  const {reserve,publicOrder}=await import('../functions/api/checkout/_commerce.js');
+  const db=database(),u=await user();
+  for(const bad of [undefined,{...delivery(),line1:' '},{...delivery(),postalCode:'1234'},{...delivery(),country:'US'},
+    {...delivery(),firstName:'a\nb'},{...delivery(),cardNumber:'4111111111111111'},{...delivery(),email:'attacker@example.test'},
+    {...delivery(),phone:'abc123'},{...delivery(),phone:'1234567890123456'}]){
+    assert.throws(()=>deliveryDetails(bad));
+    await assert.rejects(reserve(db.env,u,{...selection(),delivery:bad}));
+  }
+  assert.equal(db.sqlite.prepare('SELECT count(*) n FROM shop_orders').get().n,0);
+  assert.equal(db.sqlite.prepare('SELECT sum(available) n FROM shop_inventory').get().n,75);
+  const input={...selection(),delivery:{...delivery(),phone:'+49 (123) 456789'}};
+  const order=await reserve(db.env,u,input);assert.equal(JSON.parse(order.checkout_details_json).phone,'+49123456789');
+  assert.equal((await reserve(db.env,u,input)).id,order.id);
+  await assert.rejects(reserve(db.env,u,{...input,delivery:{...input.delivery,line1:'Andere Straße 2'}}),{code:'pending_order'});
+  assert.equal(publicOrder(order).checkout_details_json,undefined);assert.equal(publicOrder(order).phone,undefined);
+  assert.equal(order.email,u.email);db.sqlite.close();
+});
+
+test('PayPal receives the entered address and fixes shipping to that address',async t=>{
+  const {reserve}=await import('../functions/api/checkout/_commerce.js');const {createPayment}=await import('../functions/api/checkout/_providers.js');
+  const db=database(),env=activeEnv(db.env),order=await reserve(env,await user(),selection(1,'paypal'));
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    if(url.endsWith('/v1/oauth2/token'))return Response.json({access_token:'test'});
+    const body=JSON.parse(options.body);assert.equal(body.payment_source.paypal.experience_context.shipping_preference,'SET_PROVIDED_ADDRESS');
+    assert.equal(body.purchase_units[0].shipping.name.full_name,'Test Person');assert.equal(body.purchase_units[0].shipping.address.address_line_1,'Musterstraße 1');
+    return Response.json({id:'PPaddress',links:[{rel:'payer-action',href:'https://www.sandbox.paypal.com/checkoutnow?token=PPaddress'}]});
+  });
+  await createPayment(env,order);db.sqlite.close();
+});
+
+test('optional delivery telephone is included in private fulfilment notifications only',async()=>{
+  const {notificationBody,simulationOrder}=await import('../functions/api/checkout/_notifications.js');
+  const order={...simulationOrder('simulation-phone'),checkout_details_json:JSON.stringify({...delivery(),phone:'+49123456789'})};
+  assert.match(notificationBody(order,{simulation:true}).embeds[0].fields.find(f=>f.name==='Kontakt').value,/Telefon: \+49123456789/);
 });

@@ -1,3 +1,4 @@
+import { storedDelivery,providerShipping } from './_details.js';
 import { CheckoutError } from './_lib.js';
 import { dbFor, catalog } from './_commerce.js';
 import { validShipping,retainedShipping,notifyPaid } from './_notifications.js';
@@ -41,6 +42,7 @@ export async function createPayment(env,order) {
   // Provider idempotency retention is finite. Ambiguous old attempts require reconciliation.
   if(Date.now()/1000-order.created_at>5*3600)throw new CheckoutError('payment_review_required',409);
   const items=JSON.parse(order.items_json),back=site+'/api/payments/return?order='+order.id;
+  const delivery=storedDelivery(order);
   let result,url;
   if(order.method==='card'){
     const params={mode:'payment',customer_email:order.email,client_reference_id:order.id,
@@ -51,6 +53,15 @@ export async function createPayment(env,order) {
       'shipping_options[0][shipping_rate_data][fixed_amount][amount]':String(order.shipping_cents),
       'shipping_options[0][shipping_rate_data][fixed_amount][currency]':'eur',
       'shipping_options[0][shipping_rate_data][display_name]':'Standardversand Deutschland · 3–5 Werktage'};
+    if(delivery){
+      const shipping=providerShipping(delivery,'card');
+      const customerParams={email:order.email,name:shipping.name,'shipping[name]':shipping.name,'metadata[dvn_order_id]':order.id};
+      for(const [key,value] of Object.entries(shipping.address))customerParams['shipping[address]['+key+']']=value;
+      if(delivery.phone)customerParams.phone=delivery.phone;
+      const customer=await stripe(env,order.mode,'customers',customerParams,order.id+'-customer');
+      if(typeof customer.id!=='string'||!/^cus_[A-Za-z0-9]+$/.test(customer.id))throw providerError();
+      delete params.customer_email;params.customer=customer.id;params['customer_update[shipping]']='auto';
+    }
     // Distribute the integer-cent discount deterministically across units.
     // No client totals or reusable provider-wide coupons are accepted.
     let remaining=order.discount_cents,index=0,remainingSubtotal=order.subtotal_cents;
@@ -66,13 +77,14 @@ export async function createPayment(env,order) {
   }else{
     result=await paypal(env,order.mode,'/v2/checkout/orders',{
       intent:'CAPTURE',purchase_units:[{reference_id:order.id,custom_id:order.id,invoice_id:order.id,
+        ...(delivery?{shipping:providerShipping(delivery,'paypal')}:{}),
         payee:{merchant_id:env.PAYPAL_MERCHANT_ID},amount:{currency_code:'EUR',value:euros(order.total_cents),breakdown:{
           item_total:{currency_code:'EUR',value:euros(order.subtotal_cents)},
           shipping:{currency_code:'EUR',value:euros(order.shipping_cents)},discount:{currency_code:'EUR',value:euros(order.discount_cents)}}},
         items:items.map(l=>({name:catalog.products.find(p=>p.id===l.productId).name+' · '+l.size,
           sku:l.productId+':'+l.size,quantity:String(l.quantity),unit_amount:{currency_code:'EUR',value:euros(l.unitPriceCents)}}))}],
       payment_source:{paypal:{experience_context:{brand_name:'DVN CLOTHING',user_action:'PAY_NOW',
-        shipping_preference:'GET_FROM_FILE',return_url:back,cancel_url:back+'&cancel=1'}}}
+        shipping_preference:delivery?'SET_PROVIDED_ADDRESS':'GET_FROM_FILE',return_url:back,cancel_url:back+'&cancel=1'}}}
     },order.id+'-create');url=result.links?.find(l=>['payer-action','approve'].includes(l.rel))?.href;
   }
   url=approvedURL(url,order.method,order.mode);

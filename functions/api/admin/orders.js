@@ -1,3 +1,4 @@
+import { storedDelivery } from '../checkout/_details.js';
 import { rawIdentity } from '../auth/_profile.js';
 import { dbFor,publicOrder } from '../checkout/_commerce.js';
 import { readJson,reply,CheckoutError,requestOrigin } from '../checkout/_lib.js';
@@ -25,7 +26,7 @@ async function handle({request,env},post) {
         WHERE o.rowid<? ORDER BY o.rowid DESC LIMIT 21`).bind(before?Number(before):Number.MAX_SAFE_INTEGER).all();
       const rows=result.results.slice(0,20);
       const pending=await db.prepare("SELECT id,status,last_error,created_at FROM shop_notifications WHERE status<>'sent' ORDER BY created_at LIMIT 20").bind().all();
-      return reply({orders:rows.map(o=>({...publicOrder(o),email:o.email,
+      return reply({orders:rows.map(o=>({...publicOrder(o),email:o.email,phone:storedDelivery(o)?.phone||'',
         shipping:shippingDetails(JSON.parse(o.fulfilment_json||'null'),o.method),paymentId:o.payment_id,
         notificationStatus:o.notification_status,notificationError:o.notification_error})),
         next:result.results.length>20?rows.at(-1).cursor:null,pending:pending.results,webhookConfigured:Boolean(env.DISCORD_ORDER_WEBHOOK_URL)});

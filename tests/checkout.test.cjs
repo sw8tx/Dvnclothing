@@ -171,7 +171,7 @@ test('every real catalog selection remains unavailable until merchant checkout i
   for (const method of ['paypal', 'card']) {
     const ctx = await context({ method: 'POST', path: '/api/checkout/session',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method, items: actual.products.map(product => ({
+      body: JSON.stringify({ method, delivery:{firstName:'Test',lastName:'Person',line1:'Musterstraße 1',line2:'',postalCode:'12345',city:'Musterstadt',country:'DE',phone:''}, items: actual.products.map(product => ({
         productId: product.id, size: product.sizes[0], quantity: 1,
       })) }),
     });

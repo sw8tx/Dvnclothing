@@ -37,33 +37,50 @@
 </div>
 <div class="checkout-layout">
 <section class="checkout-details" aria-label="Checkout">
+<form id="checkout-form">
 <div class="express-checkout">
 <p>Express Checkout</p>
-<div><button type="button" class="card-pay-button" data-checkout-method="card" disabled><span data-de="Kreditkarte" data-en="Credit card">Kreditkarte</span></button><button type="button" class="paypal-button" data-checkout-method="paypal"><img class="paypal-logo" src="/assets/payments/paypal-wordmark.svg" alt="PayPal" width="90" height="26"></button></div>
-<span class="small muted"><span data-de="Nach Zahlungsfreigabe verfügbar" data-en="Available once payments open" >Nach Zahlungsfreigabe verfügbar</span></span></div>
+<div><button type="button" class="card-pay-button" data-checkout-method="card"><span data-de="Kreditkarte" data-en="Credit card">Kreditkarte</span></button><button type="button" class="paypal-button" data-checkout-method="paypal"><img class="paypal-logo" src="/assets/payments/paypal-wordmark.svg" alt="PayPal" width="90" height="26"></button></div>
+<span class="small muted"><span data-de="Zahlungsart wählen · Zahlung erst nach Verkaufsfreigabe" data-en="Choose a method · payment opens with sales" >Zahlungsart wählen · Zahlung erst nach Verkaufsfreigabe</span></span></div>
 <div class="checkout-step">
 <h2><span data-de="Kontakt" data-en="Contact" >Kontakt</span></h2>
-<button type="button" class="text-button" id="checkout-signin"><span data-de="Im DVN-Konto anmelden" data-en="Sign in to your DVN account" >Im DVN-Konto anmelden</span></button>
-<p class="muted" id="checkout-account-summary"><span data-de="Deine Kontaktdaten werden im sicheren Bezahlvorgang abgefragt." data-en="Your contact details will be requested in the secure payment flow." >Deine Kontaktdaten werden im sicheren Bezahlvorgang abgefragt.</span></p>
+<button type="button" class="text-button" id="checkout-signin" hidden><span data-de="Im DVN-Konto anmelden" data-en="Sign in to your DVN account" >Im DVN-Konto anmelden</span></button>
+<p class="muted" id="checkout-account-summary" role="status">Dein Anmeldestatus wird geprüft …</p>
+<label class="checkout-field" for="checkout-email"><span data-de="E-Mail-Adresse deines Kontos" data-en="Account email address">E-Mail-Adresse deines Kontos</span><input id="checkout-email" name="email" type="email" autocomplete="email" maxlength="254" readonly aria-describedby="checkout-account-summary"></label>
 </div>
 <section class="checkout-step" id="delivery">
 <h2><span data-de="Lieferung" data-en="Delivery" >Lieferung</span></h2>
-<div class="delivery-country"><span><span data-de="Land / Region" data-en="Country / region" >Land / Region</span></span><strong><span data-de="Deutschland" data-en="Germany" >Deutschland</span></strong></div>
+<div class="checkout-fields">
+<label class="checkout-field checkout-wide" for="checkout-country"><span data-de="Land / Region" data-en="Country / region">Land / Region</span><select id="checkout-country" name="country" autocomplete="shipping country"><option value="DE" data-de="Deutschland" data-en="Germany">Deutschland</option></select></label>
+<label class="checkout-field " for="checkout-firstName"><span data-de="Vorname" data-en="First name">Vorname</span><input id="checkout-firstName" name="firstName" type="text" autocomplete="shipping given-name" maxlength="70" required></label>
+<label class="checkout-field " for="checkout-lastName"><span data-de="Nachname" data-en="Last name">Nachname</span><input id="checkout-lastName" name="lastName" type="text" autocomplete="shipping family-name" maxlength="70" required></label>
+<label class="checkout-field checkout-wide" for="checkout-line1"><span data-de="Straße und Hausnummer" data-en="Street and house number">Straße und Hausnummer</span><input id="checkout-line1" name="line1" type="text" autocomplete="shipping address-line1" maxlength="150" required></label>
+<label class="checkout-field checkout-wide" for="checkout-line2"><span data-de="Wohnung, Firma, Adresszusatz (optional)" data-en="Apartment, company, address details (optional)">Wohnung, Firma, Adresszusatz (optional)</span><input id="checkout-line2" name="line2" type="text" autocomplete="shipping address-line2" maxlength="150" ></label>
+<label class="checkout-field " for="checkout-postalCode"><span data-de="Postleitzahl" data-en="Postal code">Postleitzahl</span><input id="checkout-postalCode" name="postalCode" type="text" autocomplete="shipping postal-code" maxlength="5" required inputmode="numeric" pattern="[0-9]{5}"></label>
+<label class="checkout-field " for="checkout-city"><span data-de="Stadt" data-en="City">Stadt</span><input id="checkout-city" name="city" type="text" autocomplete="shipping address-level2" maxlength="100" required></label>
+<label class="checkout-field checkout-wide" for="checkout-phone"><span data-de="Telefonnummer (optional)" data-en="Phone number (optional)">Telefonnummer (optional)</span><input id="checkout-phone" name="phone" type="tel" autocomplete="shipping tel" maxlength="30" ></label>
+</div>
+<p class="checkout-field-note muted" data-de="Die Telefonnummer ist freiwillig und dient Rückfragen zu deiner Lieferung. Pflichtfelder sind nicht als optional gekennzeichnet." data-en="Your phone number is optional and is used for delivery questions. Required fields are not marked optional.">Die Telefonnummer ist freiwillig und dient Rückfragen zu deiner Lieferung. Pflichtfelder sind nicht als optional gekennzeichnet.</p>
 <div class="delivery-status"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 5h11v12H3zM14 9h4l3 4v4h-7"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>
 <div><strong><span data-de="3–5 Werktage" data-en="3–5 business days" >3–5 Werktage</span></strong>
-<p data-de="Standardversand innerhalb Deutschlands: 4,90 €. Deine Lieferadresse gibst du im sicheren Bezahlvorgang an." data-en="Standard shipping within Germany: €4.90. You’ll enter your delivery address in the secure payment flow." >Standardversand innerhalb Deutschlands: 4,90 €. Deine Lieferadresse gibst du im sicheren Bezahlvorgang an.</p>
+<p data-de="Standardversand innerhalb Deutschlands: 4,90 €. Voraussichtliche Lieferung in 3–5 Werktagen." data-en="Standard shipping within Germany: €4.90. Estimated delivery in 3–5 business days." >Standardversand innerhalb Deutschlands: 4,90 €. Voraussichtliche Lieferung in 3–5 Werktagen.</p>
 </div>
 </div>
 </section>
 <section class="checkout-step">
 <h2><span data-de="Zahlung" data-en="Payment" >Zahlung</span></h2>
-<div class="payment-choice"><span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="1"/><path d="M8 10V6a4 4 0 0 1 8 0v4"/></svg><span data-de="Kredit- / Debitkarte" data-en="Credit / debit card" >Kredit- / Debitkarte</span></span>
-<div class="mini-cards"><img src="/assets/payments/visa.svg" alt="Visa" width="120" height="80"><img src="/assets/payments/mastercard.svg" alt="Mastercard" width="120" height="80"></div>
-</div>
-<p data-de="Kartenzahlung und Express-Checkout werden vor dem Verkaufsstart eingerichtet. Aktuell werden keine Zahlungsdaten erfasst." data-en="Card payments and express checkout will be set up before sales open. Payment details are not collected at this stage." class="muted small">Kartenzahlung und Express-Checkout werden vor dem Verkaufsstart eingerichtet. Aktuell werden keine Zahlungsdaten erfasst.</p>
-<button type="button" class="button-dark" id="checkout-pay" disabled><span data-de="Zahlung noch nicht verfügbar" data-en="Payment not available yet" >Zahlung noch nicht verfügbar</span></button>
+<fieldset class="checkout-payment-options">
+<legend class="visually-hidden" data-de="Zahlungsart auswählen" data-en="Select payment method">Zahlungsart auswählen</legend>
+<label class="payment-choice"><input type="radio" name="payment" value="card" checked><span class="payment-choice-copy"><strong data-de="Kredit- / Debitkarte" data-en="Credit / debit card">Kredit- / Debitkarte</strong><small data-de="Sicher bezahlen über Stripe" data-en="Secure payment via Stripe">Sicher bezahlen über Stripe</small></span><span class="mini-cards"><img src="/assets/payments/visa.svg" alt="Visa" width="120" height="80"><img src="/assets/payments/mastercard.svg" alt="Mastercard" width="120" height="80"></span></label>
+<label class="payment-choice"><input type="radio" name="payment" value="paypal"><span class="payment-choice-copy"><strong>PayPal</strong><small data-de="Weiter zu PayPal zur Zahlungsbestätigung" data-en="Continue to PayPal to approve payment">Weiter zu PayPal zur Zahlungsbestätigung</small></span><span class="mini-cards"><img src="/assets/payments/paypal.svg" alt="PayPal" width="120" height="80"></span></label>
+<label class="payment-choice"><input type="radio" name="payment" value="wallet"><span class="payment-choice-copy"><strong>Apple Pay / Google Pay</strong><small data-de="Über Stripe · je nach Gerät und Verfügbarkeit" data-en="Via Stripe · depending on device and availability">Über Stripe · je nach Gerät und Verfügbarkeit</small></span><span class="mini-cards"><img src="/assets/payments/apple-pay.svg" alt="Apple Pay" width="120" height="80"><img src="/assets/payments/google-pay.svg" alt="Google Pay" width="120" height="80"></span></label>
+</fieldset>
+<p id="checkout-payment-hint" class="muted small" role="status"></p>
+<p class="muted small" data-de="Zahlungsdaten gibst du ausschließlich bei Stripe oder PayPal ein. Deine DVN-Anmeldung bleibt bestehen; der Zahlungsanbieter kann eine eigene Bestätigung verlangen." data-en="Enter payment credentials only with Stripe or PayPal. Your DVN sign-in remains active; the payment provider may require its own approval.">Zahlungsdaten gibst du ausschließlich bei Stripe oder PayPal ein. Deine DVN-Anmeldung bleibt bestehen; der Zahlungsanbieter kann eine eigene Bestätigung verlangen.</p>
+<button type="submit" class="button-dark" id="checkout-pay" disabled><span data-de="Zahlung noch nicht verfügbar" data-en="Payment not available yet">Zahlung noch nicht verfügbar</span></button>
 <p id="checkout-error" class="form-error" role="alert" hidden></p>
 </section>
+</form>
 <div class="checkout-legal"><a href="/privacy.html"><span data-de="Datenschutz" data-en="Privacy" >Datenschutz</span></a><a href="/impressum.html"><span data-de="Impressum" data-en="Legal notice" >Impressum</span></a><a href="/terms.html"><span data-de="Nutzungsbedingungen" data-en="Terms" >Nutzungsbedingungen</span></a></div>
 </section>
 <aside class="order-summary" aria-label="Bestellübersicht" data-aria-de="Bestellübersicht" data-aria-en="Order summary">

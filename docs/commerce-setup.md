@@ -165,3 +165,30 @@ Discord accepts a request but its response is lost, a retry can duplicate the
 message. Always fulfil by unique order ID and verified paid live status, not
 by the number of Discord messages. Never fulfil simulations or sandbox orders.
 No automatic shipment, refund or customer confirmation email is implemented.
+
+## Delivery fields and payment selection
+
+Apply `migrations/0008_checkout_details.sql` once after 0007 before deploying this
+version. It adds nullable `checkout_details_json` to orders and preserves all
+stock and existing orders. Checkout readiness remains false until it exists.
+
+The checkout form collects recipient first/last name, German street address,
+optional address addition, five-digit postcode, city and optional phone number.
+The contact email comes from the verified signed-in account and cannot grant
+identity or access. Draft delivery fields are not written to browser storage;
+changing accounts resets them. The server validates and normalizes an explicit
+allowlist before reserving stock. Changed delivery details cannot silently
+mutate an existing pending checkout: cancel it first or resume it unchanged.
+
+Stripe gets an order-specific, idempotently created Customer with shipping
+information to prefill its hosted Checkout. The final provider-confirmed address
+remains authoritative. PayPal receives the entered address using
+`SET_PROVIDED_ADDRESS`. The optional phone appears only in the operator view and
+internal fulfilment notification, never in customer order-list responses.
+
+Three selectable options are Card, PayPal, and Apple Pay / Google Pay. Wallets
+use Stripe's hosted card checkout and are displayed there only when Stripe,
+the device/browser and the buyer's wallet support them; card entry is the
+fallback. Selecting a method never initiates payment or requests another DVN
+sign-in. Existing session authentication is checked again on the server. PayPal,
+the wallet or the card issuer may still require their own payment approval.

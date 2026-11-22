@@ -24,7 +24,7 @@ export function requestOrigin(request, post = false) {
 }
 
 // Read the actual stream size: Content-Length can be absent or inaccurate.
-// No address, payment details or provider credentials belong in this payload.
+// Delivery fields are explicitly validated. Card data and provider credentials are never accepted.
 export async function readJson(request, { limit = 8192, timeoutMs = 5000, raw = false } = {}) {
   if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {
     throw new CheckoutError('invalid_request', 415);

@@ -24,7 +24,7 @@
         const grid=node('div','',card,'admin-grid'),items=node('div','',grid),contact=node('div','',grid);
         node('h3','Artikel',items);for(const l of o.items)node('p',`${l.quantity} × ${l.productId} · ${l.size} · ${money(l.unitPriceCents*l.quantity)}`,items);
         const totals=node('dl','',items);for(const [label,amount] of [['Artikel',o.subtotalCents],['Rabatt',-o.discountCents],['Versand',o.shippingCents],['Gesamt',o.totalCents]]){node('dt',label,totals);node('dd',money(amount),totals);}
-        node('h3','Kontakt & Lieferung',contact);node('p',o.email,contact);const s=o.shipping||{};
+        node('h3','Kontakt & Lieferung',contact);node('p',o.email,contact);if(o.phone)node('p','Telefon: '+o.phone,contact);const s=o.shipping||{};
         node('pre',[s.name,s.line1,s.line2,[s.postalCode,s.city].filter(Boolean).join(' '),s.region,s.country].filter(Boolean).join('\n')||'Noch keine bestätigte Lieferadresse.',contact);
         node('p',(o.method==='paypal'?'PayPal':'Karte über Stripe')+(o.paymentId?' · '+o.paymentId:''),contact);
       }

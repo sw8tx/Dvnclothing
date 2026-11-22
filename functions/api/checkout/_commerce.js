@@ -1,3 +1,4 @@
+import { deliveryDetails } from './_details.js';
 import { privatePages } from '../../_private-pages.js';
 import { rawIdentity, readProfile } from '../auth/_profile.js';
 import { CheckoutError, normalizeCart } from './_lib.js';
@@ -33,17 +34,19 @@ export async function ready(env) {
   try {
     const result=await dbFor(env).prepare('SELECT product_id,size,available FROM shop_inventory').bind().all();
     return catalog.products.every(p=>p.sizes.every(size=>result.results.some(r=>r.product_id===p.id&&r.size===size)))
+      && Boolean(await dbFor(env).prepare('SELECT checkout_details_json FROM shop_orders LIMIT 1').bind().all())
       && Boolean(env.DISCORD_ORDER_WEBHOOK_URL)
       && Boolean(await dbFor(env).prepare('SELECT id FROM shop_notifications LIMIT 1').bind().all());
   } catch { return false; }
 }
 export function payload(value) {
   if(!value || typeof value!=='object' || Array.isArray(value)
-    || Object.keys(value).some(k=>!['method','items','code'].includes(k))
+    || Object.keys(value).some(k=>!['method','items','code','delivery'].includes(k))
     || (value.code!==undefined && (typeof value.code!=='string'||value.code.length>50))) {
     throw new CheckoutError('invalid_request');
   }
-  return {...normalizeCart({method:value.method,items:value.items},catalog),code:(value.code||'').trim().toUpperCase()};
+  return {...normalizeCart({method:value.method,items:value.items},catalog),code:(value.code||'').trim().toUpperCase(),
+    ...(value.delivery!==undefined?{delivery:deliveryDetails(value.delivery)}:{})};
 }
 export async function quote(env,user,input) {
   const cart=payload(input), db=dbFor(env), key=await digest('dvn-welcome-v1:'+user.email.trim().toLowerCase());
@@ -75,6 +78,7 @@ export function publicOrder(o) {
 }
 export async function reserve(env,user,input) {
   const cart=payload(input), key=await digest('dvn-welcome-v1:'+user.email.trim().toLowerCase());
+  if(!cart.delivery)throw new CheckoutError('invalid_delivery');
   cart.items.sort((a,b)=>(a.productId+':'+a.size).localeCompare(b.productId+':'+b.size));
   const hash=await digest(JSON.stringify(cart));
   const db=dbFor(env), mode=providerMode(env);
@@ -93,9 +97,9 @@ export async function reserve(env,user,input) {
   try {
     const q=await quote(env,user,input);
     await db.prepare(`INSERT INTO shop_orders(id,owner_id,customer_key,email,method,mode,request_hash,items_json,
-      subtotal_cents,discount_cents,discount_code,shipping_cents,total_cents)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id,user.id,key,user.email,cart.method,mode,hash,
-      JSON.stringify(q.items),q.subtotalCents,q.discountCents,q.code||null,q.shippingCents,q.totalCents).run();
+      subtotal_cents,discount_cents,discount_code,shipping_cents,total_cents,checkout_details_json)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id,user.id,key,user.email,cart.method,mode,hash,
+      JSON.stringify(q.items),q.subtotalCents,q.discountCents,q.code||null,q.shippingCents,q.totalCents,JSON.stringify(cart.delivery)).run();
   } catch(error) {
     const concurrent=await existing();if(concurrent)return resume(concurrent);
     if(String(error.message).includes('stock_unavailable'))throw new CheckoutError('stock_unavailable',409);

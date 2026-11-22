@@ -9,7 +9,7 @@ export async function onRequestPost({ request, env }) {
   if (!await rawIdentity(request, env)) return reply({ error: 'unauthenticated' }, 401);
   try {
     const input=await readJson(request);
-    payload(input);
+    if(!payload(input).delivery)throw new CheckoutError('invalid_delivery');
     if(!await ready(env))return reply({error:'checkout_not_ready'},503);
     const user=await customer(request,env),order=await reserve(env,user,input);
     if(order.status==='capturing')return reply({error:'payment_pending',orderId:order.id},409);

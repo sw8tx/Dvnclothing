@@ -12,6 +12,7 @@ let toastTimer, catalog, products=[], cart=[], currentProduct, selectedImage=0, 
 let user=window.DVNAuth?.user||null, storageKey=cartStorageKey(user), storageAvailable=true, productInit=false;
 let shirtViewer;
 let checkoutReady=false, checkoutMethods=[];
+let selectedPayment=['card','paypal','wallet'].includes(new URLSearchParams(location.search).get('method'))?new URLSearchParams(location.search).get('method'):'card';
 let cartVersion=null,cartSyncing=false,cartSynced=false,cartConflict=false,cartEpoch=0,cartWrites=0;
 let discountQuote=null,checkoutBusy=false,orders=[];
 const api=async(path,body)=>{
@@ -64,7 +65,7 @@ function translate(){
   });
   const code=$('#discount-code');if(code)code.placeholder=t('Rabattcode','Discount code');
   if(currentProduct)renderProductCopy();
-  if(products.length){renderCart();renderFavourites();}
+  if(products.length){renderCart();renderFavourites();}renderCheckoutIdentity();
 }
 function notify(de,en){clearTimeout(toastTimer);toast.textContent=t(de,en);toast.hidden=false;toastTimer=setTimeout(()=>{toast.hidden=true;},4500);}
 function openDialog(dialog){if(dialog&&!dialog.open)dialog.showModal();}
@@ -86,7 +87,7 @@ function saveCart(){
 }
 function switchAccount(next){
   const key=cartStorageKey(next);user=next;
-  if(key!==storageKey){cartEpoch++;cartSyncing=false;cartVersion=null;cartSynced=false;cartConflict=false;discountQuote=null;orders=[];storageKey=key;restoreCart();if(bag?.open)bag.close();void loadAccountCart();}
+  if(key!==storageKey){$('#checkout-form')?.reset();$('#checkout-email')?.setAttribute('value','');const error=$('#checkout-error');if(error){error.hidden=true;error.textContent='';}cartEpoch++;cartSyncing=false;cartVersion=null;cartSynced=false;cartConflict=false;discountQuote=null;orders=[];storageKey=key;restoreCart();if(bag?.open)bag.close();void loadAccountCart();}
   renderCart();renderOrders();if(document.body.dataset.page==='checkout')checkCheckoutReadiness();
 }
 function cartLine(line){
@@ -129,8 +130,7 @@ function renderCart(){
       storageAvailable?t('Deine Auswahl bleibt in diesem Tab.','Your selection stays in this tab.'):t('Deine Auswahl bleibt bis zum Schließen dieser Seite.','Your selection lasts until this page is closed.')));
     if(storageKey&&!cartSynced&&!cartSyncing){const b=make('button','text-button',cartConflict?t('Gespeicherten Warenkorb übernehmen','Load the saved bag'):t('Erneut synchronisieren','Retry sync'));b.type='button';b.addEventListener('click',()=>loadAccountCart(cartConflict));note.append(document.createTextNode(' '),b);}
   }
-  const pay=$('#checkout-pay');if(pay){pay.disabled=!checkoutReady||!count||checkoutBusy;pay.textContent=checkoutReady?t('Weiter zur sicheren Kartenzahlung','Continue to secure card payment'):t('Zahlung noch nicht verfügbar','Payment not available yet');}
-  $$('[data-checkout-method]').forEach(b=>b.disabled=!checkoutReady||!count||checkoutBusy);
+  renderCheckoutControls(count);
 }
 function addItem(showBag=true){
   const selected=$('input[name="size"]:checked');
@@ -227,31 +227,63 @@ function initializeProduct(){
   $('#zoom-photo').addEventListener('click',()=>{const img=$('#zoomed-image');img.src=$('#product-main-image').src;img.alt=$('#product-main-image').alt;openDialog($('#image-dialog'));});
   $('#product-paypal').addEventListener('click',()=>{if(addItem(false))location.assign('/checkout?method=paypal');});
 }
-async function checkCheckoutReadiness(){
-  checkoutReady=false;checkoutMethods=[];
-  const notice=$('#checkout-availability');if(notice)notice.textContent=t('Du kannst deinen Warenkorb bereits zusammenstellen. Bezahlen ist nach Freigabe des Shops möglich.','You can already put your bag together. Payment will be available once the shop opens.');
-  const summary=$('#checkout-account-summary');
-  if(summary)summary.textContent=user?.email?t('Angemeldet als ','Signed in as ')+user.email:t('Deine Kontaktdaten werden im sicheren Bezahlvorgang abgefragt.','Your contact details will be requested in the secure payment flow.');
-  const expectedKey=storageKey;
-  if(user?.id){try{const r=await fetch('/api/checkout/config',{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(10000)});const d=await r.json();if(expectedKey!==storageKey)return;if(r.ok&&d.ready===true&&Array.isArray(d.methods)){checkoutReady=true;checkoutMethods=d.methods.filter(m=>['paypal','card'].includes(m));const notice=$('#checkout-availability');if(notice)notice.textContent=d.test?t('Testmodus – keine echte Zahlung.','Test mode – no real payment.'):t('Sicher bezahlen mit PayPal oder Kreditkarte.','Pay securely with PayPal or a credit card.');}}catch{}await loadOrders();}
-  renderCart();
+function renderCheckoutIdentity(){
+  const button=$('#checkout-signin'),summary=$('#checkout-account-summary'),email=$('#checkout-email');
+  if(button)button.hidden=Boolean(user?.id);
+  if(summary)summary.textContent=user?.email?t('Angemeldet als ','Signed in as ')+user.email+t(' · Du musst dich nicht erneut anmelden.',' · No need to sign in again.'):t('Melde dich mit deinem DVN-Konto an, um deine Bestellung zuzuordnen.','Sign in to your DVN account to link your order.');
+  if(email)email.value=user?.email||'';
 }
-async function checkout(method){
+function renderCheckoutControls(count=cart.reduce((s,l)=>s+l.quantity,0)){
+  const pay=$('#checkout-pay');if(!pay)return;
+  const method=selectedPayment==='paypal'?'paypal':'card';
+  const enabled=checkoutReady&&checkoutMethods.includes(method);
+  pay.disabled=!enabled||!count||checkoutBusy;pay.dataset.payment=selectedPayment;
+  pay.textContent=checkoutBusy?t('Bezahlvorgang wird vorbereitet …','Preparing payment …'):!enabled?t('Zahlung noch nicht verfügbar','Payment not available yet'):
+    selectedPayment==='paypal'?t('Weiter zu PayPal','Continue to PayPal'):selectedPayment==='wallet'?t('Weiter zu Apple Pay / Google Pay','Continue to Apple Pay / Google Pay'):t('Weiter zur sicheren Kartenzahlung','Continue to secure card payment');
+  $$('input[name="payment"]').forEach(r=>{r.checked=r.value===selectedPayment;r.disabled=checkoutBusy;});
+  $$('[data-checkout-method]').forEach(b=>{b.disabled=checkoutBusy;b.setAttribute('aria-pressed',String(b.dataset.checkoutMethod===selectedPayment));});
+  const hint=$('#checkout-payment-hint');if(hint)hint.textContent=selectedPayment==='paypal'?t('Du bestätigst die Zahlung direkt bei PayPal. Deine Lieferadresse wird übernommen.','Approve your payment directly with PayPal. Your delivery address is transferred.'):
+    selectedPayment==='wallet'?t('Stripe zeigt Apple Pay oder Google Pay, sofern dein Gerät und Wallet unterstützt werden. Andernfalls kannst du dort mit Karte bezahlen.','Stripe displays Apple Pay or Google Pay when supported by your device and wallet. Otherwise you can pay by card there.'):
+    t('Deine Lieferdaten werden an Stripe übergeben. Kartendaten gibst du erst auf der sicheren Zahlungsseite ein.','Your delivery details are passed to Stripe. Enter card details on its secure payment page.');
+}
+function checkoutDelivery(){
+  const form=$('#checkout-form');
+  for(const input of form.querySelectorAll('input[required]')){
+    input.setCustomValidity(input.value.trim()?'':t('Bitte fülle dieses Feld aus.','Please fill out this field.'));
+  }
+  const phone=$('#checkout-phone'),digits=phone.value.replace(/[ ().\/-]/g,'');
+  phone.setCustomValidity(!phone.value.trim()||/^\+?\d{6,15}$/.test(digits)?'':t('Bitte gib eine gültige Telefonnummer ein.','Please enter a valid phone number.'));
+  if(!form.reportValidity())return null;
+  return Object.fromEntries(['firstName','lastName','line1','line2','postalCode','city','country','phone'].map(key=>[key,$('#checkout-'+key).value.trim()]));
+}
+async function checkCheckoutReadiness(){
+  checkoutReady=false;checkoutMethods=[];renderCheckoutIdentity();
+  const notice=$('#checkout-availability');if(notice)notice.textContent=t('Du kannst deinen Warenkorb und deine Lieferdaten bereits vorbereiten. Bezahlen ist nach Freigabe des Shops möglich.','You can prepare your bag and delivery details. Payment will be available once the shop opens.');
+  const expectedKey=storageKey;
+  if(user?.id){try{const r=await fetch('/api/checkout/config',{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(10000)});const d=await r.json();if(expectedKey!==storageKey)return;if(r.ok&&d.ready===true&&Array.isArray(d.methods)){checkoutReady=true;checkoutMethods=d.methods.filter(m=>['paypal','card'].includes(m));if(notice)notice.textContent=d.test?t('Testmodus – keine echte Zahlung.','Test mode – no real payment.'):t('Sicher bezahlen mit PayPal oder Stripe.','Pay securely with PayPal or Stripe.');}}catch{}await loadOrders();}
+  if(expectedKey===storageKey)renderCart();
+}
+async function checkout(){
   if(checkoutBusy)return;
+  const error=$('#checkout-error');error.hidden=true;error.textContent='';
+  if(!user?.id){await window.DVNAuth?.requireLogin?.();return;}
   if(!cart.length){notify('Dein Warenkorb ist leer.','Your bag is empty.');return;}
+  const delivery=checkoutDelivery();if(!delivery)return;
+  const method=selectedPayment==='paypal'?'paypal':'card';
   if(!checkoutReady||!checkoutMethods.includes(method)){notify('Zahlungen sind noch nicht freigeschaltet. Deine Auswahl bleibt im Warenkorb.','Payments are not open yet. Your selection stays in your bag.');return;}
-  if(!await window.DVNAuth?.requireLogin?.())return;
   const expectedKey=storageKey;
   checkoutBusy=true;renderCart();
   try{
-    const response=await fetch('/api/checkout/session',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({method,items:cart.map(l=>({...l})),code:discountQuote?.code||''}),signal:AbortSignal.timeout(20000)});
+    const response=await fetch('/api/checkout/session',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({method,delivery,items:cart.map(l=>({...l})),code:discountQuote?.code||''}),signal:AbortSignal.timeout(20000)});
     const result=await response.json();if(expectedKey!==storageKey)return;
-    if(!response.ok){if(result.error==='stock_unavailable')notify('Die gewünschte Menge ist nicht mehr verfügbar. Bitte passe deinen Warenkorb an.','The requested quantity is no longer available. Please update your bag.');else if(result.error==='pending_order')notify('Du hast noch einen offenen Bezahlvorgang. Öffne ihn unten unter Bestellungen.','You have a pending checkout. Open it under orders below.');throw new Error(result.error);}
+    if(!response.ok){if(response.status===401){checkoutReady=false;await window.DVNAuth?.requireLogin?.();}throw new Error(result.error);}
     const url=new URL(result.url);const allowed=['checkout.stripe.com','www.paypal.com','www.sandbox.paypal.com'];
-    if(url.protocol!=='https:'||!allowed.includes(url.hostname))throw new Error('destination');
+    if(url.protocol!=='https:'||url.username||url.password||url.port||!allowed.includes(url.hostname))throw new Error('destination');
     location.assign(url.href);
-  }catch(e){if(expectedKey===storageKey&&!['stock_unavailable','pending_order'].includes(e.message))notify('Der Checkout konnte nicht bestätigt werden. Prüfe unten den Bestellstatus, bevor du erneut bezahlst.','Checkout could not be confirmed. Check your order status below before paying again.');}
-  finally{checkoutBusy=false;renderCart();if(expectedKey===storageKey)void loadOrders();}
+  }catch(e){if(expectedKey===storageKey){
+    const messages={invalid_delivery:t('Bitte prüfe deinen Namen und die vollständige Lieferadresse.','Please check your name and full delivery address.'),invalid_phone:t('Bitte prüfe deine Telefonnummer.','Please check your phone number.'),stock_unavailable:t('Die gewünschte Menge ist nicht mehr verfügbar. Bitte passe deinen Warenkorb an.','The requested quantity is no longer available. Please update your bag.'),pending_order:t('Du hast noch einen offenen Bezahlvorgang. Öffne ihn unten unter Bestellungen oder brich ihn ab, bevor du deine Angaben änderst.','You have a pending checkout. Continue or cancel it under orders before changing your details.'),unauthenticated:t('Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.','Your session expired. Please sign in again.')};
+    error.textContent=messages[e.message]||t('Der Checkout konnte nicht bestätigt werden. Prüfe unten den Bestellstatus, bevor du erneut bezahlst.','Checkout could not be confirmed. Check your order status below before paying again.');error.hidden=false;
+  }}finally{checkoutBusy=false;renderCart();if(expectedKey===storageKey)void loadOrders();}
 }
 async function loadOrders(){
   const area=$('#account-orders');if(!area||!user?.id)return;
@@ -277,8 +309,10 @@ async function updateOrder(id,action){
   catch{if(expectedKey===storageKey)notify('Der Zahlungsstatus ist noch nicht bestätigt. Bitte später erneut prüfen.','Payment status has not been confirmed yet. Please check again later.');}
 }
 $('#checkout-signin')?.addEventListener('click',()=>{$('[data-google-auth]')?.click();});
-$$('[data-checkout-method]').forEach(b=>b.addEventListener('click',()=>checkout(b.dataset.checkoutMethod)));
-$('#checkout-pay')?.addEventListener('click',()=>checkout('card'));
+$$('[data-checkout-method]').forEach(b=>b.addEventListener('click',()=>{selectedPayment=b.dataset.checkoutMethod;renderCheckoutControls();$('#delivery')?.scrollIntoView({block:'start'});}));
+$$('input[name="payment"]').forEach(r=>r.addEventListener('change',()=>{if(r.checked)selectedPayment=r.value;renderCheckoutControls();}));
+$('#checkout-form')?.addEventListener('submit',e=>{e.preventDefault();void checkout();});
+$('#checkout-form')?.addEventListener('input',e=>{e.target.setCustomValidity?.('');});
 $('#discount-form')?.addEventListener('submit',async e=>{
   e.preventDefault();const m=$('#discount-message'),expectedKey=storageKey,snapshot=JSON.stringify(cart);m.hidden=false;discountQuote=null;
   if(!user?.id){m.textContent=t('Melde dich an, um deinen persönlichen Code zu prüfen.','Sign in to check your personal code.');renderCart();return;}
