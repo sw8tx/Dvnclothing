@@ -68,23 +68,30 @@ export async function deliverNotification(env,id) {
     const existing=await db.prepare('SELECT status FROM shop_notifications WHERE id=?').bind(id).first();
     return existing?.status==='sent';
   }
-  let retry=60,category='notification_unavailable';
+  let retry=60,category='notification_unavailable',stage='payload';
   try {
     const order=job.order_id?await db.prepare("SELECT * FROM shop_orders WHERE id=? AND status='paid'").bind(job.order_id).first():JSON.parse(job.simulation_json);
     if(!order)throw Error();
+    const body=JSON.stringify(notificationBody(order,{simulation:!job.order_id}));
+    stage='network';
     const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(notificationBody(order,{simulation:!job.order_id})),redirect:'error',signal:AbortSignal.timeout(10000)});
+      body,redirect:'error',signal:AbortSignal.timeout(10000)});
+    stage='response';
     if(!response.ok){
+      category='discord_http_'+response.status;
       if(response.status===429){category='rate_limited';const info=await response.json().catch(()=>({}));retry=Math.min(86400,Math.max(60,Math.ceil(Number(info.retry_after)||60)));}
       else if([401,403,404].includes(response.status)){category='webhook_rejected';retry=3600;}
       throw Error();
     }
     const message=await response.json();
+    stage='receipt';
     if(!/^\d{17,20}$/.test(message?.id||''))throw Error();
+    stage='persistence';
     await db.prepare(`UPDATE shop_notifications SET status='sent',message_id=?,sent_at=unixepoch(),last_error=NULL,lease_token=NULL,lease_until=0
       WHERE id=? AND lease_token=?`).bind(message.id,id,token).run();
     return true;
-  }catch{
+  }catch(error){
+    if(category==='notification_unavailable')category='notification_'+stage+(error?.name==='TimeoutError'?'_timeout':'_failed');
     // Never persist provider response bodies, webhook URLs or customer values in diagnostics.
     await db.prepare(`UPDATE shop_notifications SET status='pending',last_error=?,retry_at=unixepoch()+?,lease_token=NULL,lease_until=0
       WHERE id=? AND lease_token=?`).bind(category,retry,id,token).run();
