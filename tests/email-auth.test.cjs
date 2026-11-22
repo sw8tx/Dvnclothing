@@ -196,7 +196,7 @@ test('short provider rate limit waits before retrying exactly the same message',
   const result = await request('start', { email: 'member@example.test' });
   assert.equal(result.status, 202);
   assert.ok(result.headers.get('Set-Cookie'));
-  assert.deepEqual(waits, [9000, 1000, 9000]);
+  assert.deepEqual(waits, [5000, 9000, 1000, 9000]); // Body deadline, then provider retry deadlines.
   assert.equal(deliveries.length, 2);
   assert.deepEqual(deliveries[1], deliveries[0]);
   assert.deepEqual(log.mock.calls[0].arguments[1], { stage: 'resend', attempt: 1, status: 429, category: 'rate_limit' });
@@ -468,4 +468,28 @@ test('linking requires the original signed Google session and a correct code for
   const chosen = await identityFromClaims({ sub: 'email:' + email, email });
   assert.equal(db.prepare('SELECT email_id FROM account_links').get().email_id, chosen.id);
   assert.equal((await request('verify', { code }, pending + '; ' + google)).status, 400);
+});
+
+test('email input rejects malformed UTF-8, oversized streams and malformed declared lengths', async () => {
+  const { body } = await import('../functions/api/auth/email/_shared.js');
+  const request = (value, extra = {}) => new Request(site + '/api/auth/email/start', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...extra }, body: value,
+  });
+  assert.deepEqual(await body(request('{"email":"a@example.test"}')), { email: 'a@example.test' });
+  for (const value of [new Uint8Array([0xc3, 0x28]), 'x'.repeat(2049), '{']) {
+    assert.equal(await body(request(value)), null);
+  }
+  assert.equal(await body(request('{}', { 'Content-Length': 'invalid' })), null);
+  assert.equal(await body(request('{}', { 'Content-Length': '2049' })), null);
+});
+
+test('email body deadline also bounds a stalled cancellation', { timeout: 7000 }, async () => {
+  const { body } = await import('../functions/api/auth/email/_shared.js');
+  let cancelled = false;
+  const stream = new ReadableStream({ cancel() { cancelled = true; return new Promise(() => {}); } });
+  const request = new Request(site + '/api/auth/email/start', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: stream, duplex: 'half',
+  });
+  assert.equal(await body(request), null);
+  assert.equal(cancelled, true);
 });

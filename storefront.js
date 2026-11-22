@@ -300,7 +300,7 @@ function renderOrders(){
   const area=$('#account-orders');if(!area)return;area.hidden=!orders.length;const list=$('#order-list');list.replaceChildren();
   const labels={creating:t('Bezahlvorgang wird vorbereitet','Preparing checkout'),pending:t('Zahlung ausstehend','Awaiting payment'),capturing:t('Zahlung wird geprüft','Checking payment'),paid:t('Zahlung bestätigt','Payment confirmed'),cancelled:t('Abgebrochen','Cancelled')};
   for(const o of orders){const item=make('div','checkout-step');item.append(make('strong','',(o.test?'TEST · ':'')+labels[o.status]+' · '+money(o.totalCents)),make('p','small',o.id));
-    if(o.approvalUrl){try{const url=new URL(o.approvalUrl);if(url.protocol==='https:'&&!url.username&&!url.password&&['checkout.stripe.com','www.paypal.com','www.sandbox.paypal.com'].includes(url.hostname)){const link=make('a','text-button',t('Bezahlen fortsetzen','Continue payment'));link.href=url.href;item.append(link,document.createTextNode(' '));}}catch{}}
+    if(o.approvalUrl){try{const url=new URL(o.approvalUrl);if(url.protocol==='https:'&&!url.username&&!url.password&&url.port===''&&['checkout.stripe.com','www.paypal.com','www.sandbox.paypal.com'].includes(url.hostname)){const link=make('a','text-button',t('Bezahlen fortsetzen','Continue payment'));link.href=url.href;item.append(link,document.createTextNode(' '));}}catch{}}
     if(!['paid','cancelled'].includes(o.status))for(const [action,de,en] of [['complete','Status prüfen / abschließen','Check / complete payment'],['cancel','Bezahlvorgang abbrechen','Cancel checkout']]){
       const b=make('button','text-button',t(de,en));b.type='button';b.addEventListener('click',()=>updateOrder(o.id,action));item.append(b,document.createTextNode(' '));
     }list.append(item);

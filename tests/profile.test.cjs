@@ -148,3 +148,21 @@ test('mailbox case equivalence is limited to the same Gmail domain and keeps exi
   const account = email => identityFromClaims({ sub: 'email:' + email, email });
   assert.notEqual((await account('Name@gmail.com')).id, (await account('name@gmail.com')).id);
 });
+
+test('authenticated profile upload times out without changing profile or waiting for cancellation', { timeout: 7000 }, async t => {
+  const api = await app(t);
+  const { seal } = await import('../functions/api/auth/_lib.js');
+  const { onRequestPost } = await import('../functions/api/auth/profile.js');
+  const token = await seal({ ...email, exp: Math.floor(Date.now() / 1000) + 120 }, api.env.AUTH_COOKIE_SECRET);
+  let cancelled = false;
+  const stream = new ReadableStream({ cancel() { cancelled = true; return new Promise(() => {}); } });
+  const response = await onRequestPost({ env: api.env, request: new Request('https://dvnclothing.com/api/auth/profile', {
+    method: 'POST', body: stream, duplex: 'half', headers: {
+      Cookie: '__Host-dvn-session=' + token, Origin: 'https://dvnclothing.com', 'Content-Type': 'application/json',
+    },
+  }) });
+  assert.equal(response.status, 408);
+  assert.deepEqual(await response.json(), { error: 'request_timeout' });
+  assert.equal(cancelled, true);
+  assert.equal((await (await api.forIdentity(email)).session()).user.name, email.name);
+});

@@ -1,4 +1,5 @@
 import { encode, noStore, origin } from '../_lib.js';
+import { readJson } from '../../checkout/_lib.js';
 
 export const challengeCookie = '__Host-dvn-email-challenge';
 export const lifetime = 600;
@@ -23,24 +24,10 @@ export function validateRequest(request, env) {
 }
 
 export async function body(request) {
-  if (!request.body || Number(request.headers.get('Content-Length')) > 2048) return null;
-  const reader = request.body.getReader();
-  const decoder = new TextDecoder();
-  let bytes = 0;
-  let text = '';
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      bytes += value.byteLength;
-      if (bytes > 2048) {
-        await reader.cancel();
-        return null;
-      }
-      text += decoder.decode(value, { stream: true });
-    }
-    return JSON.parse(text + decoder.decode());
-  } catch { return null; }
+  // Apply the same byte limit, strict UTF-8 and total read deadline as checkout.
+  // A stalled stream (including its cancellation) must not hold a login open.
+  try { return await readJson(request, { limit: 2048 }); }
+  catch { return null; }
 }
 
 export async function mac(secret, kind, value) {

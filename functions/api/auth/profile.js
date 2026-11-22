@@ -1,34 +1,9 @@
 import { noStore, origin } from './_lib.js';
 import { validAvatar } from './_avatar.js';
 import { identity, profileConfigured, saveProfile } from './_profile.js';
+import { CheckoutError, readJson } from '../checkout/_lib.js';
 
 const error = (code, status) => noStore(Response.json({ error: code }, { status }));
-
-async function payload(request) {
-  const limit = 180000;
-  if (Number(request.headers.get('Content-Length')) > limit) throw new RangeError();
-  const reader = request.body?.getReader();
-  if (!reader) throw new SyntaxError();
-  const chunks = [];
-  let count = 0;
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    count += value.byteLength;
-    if (count > limit) {
-      await reader.cancel();
-      throw new RangeError();
-    }
-    chunks.push(value);
-  }
-  const bytes = new Uint8Array(count);
-  let cursor = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, cursor);
-    cursor += chunk.byteLength;
-  }
-  return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-}
 
 export async function onRequestPost({ request, env }) {
   const site = origin(request);
@@ -44,9 +19,9 @@ export async function onRequestPost({ request, env }) {
 
   let body;
   try {
-    body = await payload(request);
+    body = await readJson(request, { limit: 180000 });
   } catch (failure) {
-    return failure instanceof RangeError ? error('payload_too_large', 413) : error('invalid_request', 400);
+    return failure instanceof CheckoutError ? error(failure.code, failure.status) : error('invalid_request', 400);
   }
   if (!body || typeof body !== 'object' || Array.isArray(body) || !Object.keys(body).length ||
       Object.keys(body).some(key => key !== 'name' && key !== 'avatar')) return error('invalid_request', 400);
