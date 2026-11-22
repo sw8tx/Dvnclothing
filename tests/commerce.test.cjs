@@ -256,3 +256,22 @@ test('a Discord outage does not turn a paid customer order into a failed checkou
   const response=await onRequestPost({env,request:await request('/api/checkout/order',{action:'refresh',id:o.id})});
   assert.equal(response.status,200);assert.equal((await response.json()).order.status,'paid');db.sqlite.close();
 });
+
+test('outbound integrations use Workers-compatible manual redirects and reject 302 without forwarding credentials',async t=>{
+  const {stripe,paypal}=await import('../functions/api/checkout/_providers.js');
+  const {retireTestPromotion}=await import('../functions/api/account/_stripe.js');
+  const {deliverNotification,simulationOrder}=await import('../functions/api/checkout/_notifications.js');
+  const db=database();let calls=0;
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    calls++;assert.equal(options.redirect,'manual');
+    return new Response(null,{status:302,headers:{Location:'https://untrusted.example/collect'}});
+  });
+  const env={...activeEnv(db.env),DISCORD_ORDER_WEBHOOK_URL:fakeWebhook,STRIPE_TEST_SECRET_KEY:'sk_test_fixture'};
+  await assert.rejects(stripe(env,'test','checkout/sessions'),{code:'payment_unavailable'});
+  await assert.rejects(paypal(env,'test','/v2/checkout/orders'),{code:'payment_unavailable'});
+  await assert.rejects(retireTestPromotion(env,'TEST'),/Stripe sandbox request failed/);
+  db.sqlite.prepare('INSERT INTO shop_notifications(id,simulation_json) VALUES(?,?)').run('redirect',JSON.stringify(simulationOrder('redirect')));
+  assert.equal(await deliverNotification(env,'redirect'),false);
+  assert.equal(db.sqlite.prepare('SELECT status,last_error FROM shop_notifications').get().last_error,'discord_http_302');
+  assert.equal(calls,4);db.sqlite.close();
+});

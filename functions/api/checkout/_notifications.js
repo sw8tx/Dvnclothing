@@ -75,7 +75,7 @@ export async function deliverNotification(env,id) {
     const body=JSON.stringify(notificationBody(order,{simulation:!job.order_id}));
     stage='network';
     const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
-      body,redirect:'error',signal:AbortSignal.timeout(10000)});
+      body,redirect:'manual',signal:AbortSignal.timeout(10000)});
     stage='response';
     if(!response.ok){
       category='discord_http_'+response.status;

@@ -9,7 +9,7 @@ async function stripe(key, path, { data, idempotency, allowMissing } = {}) {
   const response = await fetch(base + path, {
     method: data ? 'POST' : 'GET', headers,
     body: data ? new URLSearchParams(data) : undefined,
-    signal: AbortSignal.timeout(7000), redirect: 'error',
+    signal: AbortSignal.timeout(7000), redirect: 'manual',
   });
   if (allowMissing && response.status === 404) return null;
   if (!response.ok) throw Error('Stripe sandbox request failed');

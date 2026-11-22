@@ -7,7 +7,7 @@ const euros=cents=>(cents/100).toFixed(2);
 const providerError=()=>new CheckoutError('payment_unavailable',503);
 async function jsonFetch(url,options) {
   let response;
-  try {response=await fetch(url,{...options,redirect:'error',signal:AbortSignal.timeout(12000)});}catch{throw providerError();}
+  try {response=await fetch(url,{...options,redirect:'manual',signal:AbortSignal.timeout(12000)});}catch{throw providerError();}
   if(!response.ok)throw providerError();
   return response.json();
 }
