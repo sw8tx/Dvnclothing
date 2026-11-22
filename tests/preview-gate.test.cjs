@@ -64,7 +64,7 @@ function assets() {
 async function gate(path, { cookie = '', settings = env, fixture = assets(), method = 'GET', extra = {}, pages = privateDocuments } = {}) {
   const { createPreviewMiddleware } = await import('../functions/_middleware.js');
   const onRequest = createPreviewMiddleware(pages);
-  return { fixture, response: await onRequest({ request: request(path, { cookie, method, extra }),
+  return { fixture, response: await onRequest({ request: request(path, { cookie, method, extra: { 'Sec-Fetch-Site': 'same-origin', ...extra } }),
     env: { ...settings, ASSETS: fixture.binding }, next: () => { throw Error('Static request escaped gate'); },
   }) };
 }
@@ -324,5 +324,36 @@ test('the gate defers existing API authentication and routes all pages through m
   for (const route of routes.exclude) {
     assert.doesNotMatch(route, /\*|\.html$|\.json$|\/shop|\/products|\/checkout|\/storefront/);
     assert.match(route, /\.(?:css|js|png|svg|woff2|txt)$/);
+  }
+});
+
+
+test('direct and external links require re-entry even with a valid preview cookie', async () => {
+  const cookie = await session();
+  for (const path of ['/shop', '/Shop', '/SHOP/', '/Shop.html', '/products/ink-black', '/checkout']) {
+    for (const extra of [{ 'Sec-Fetch-Site': 'none' }, { 'Sec-Fetch-Site': 'cross-site' }, { 'Sec-Fetch-Site': '', Referer: '' }]) {
+      const { response, fixture } = await gate(path, { cookie, extra });
+      assert.equal(response.status, 302, path);
+      assert.equal(new URL(response.headers.get('Location')).pathname, '/');
+      assert.match(response.headers.getSetCookie().find(v => v.startsWith(previewName + '=')), /Max-Age=0$/);
+      assert.equal(fixture.fetched.length, 0);
+    }
+  }
+  for (const extra of [{ 'Sec-Fetch-Site': 'same-origin' }, { 'Sec-Fetch-Site': '', Referer: site + '/?preview=required' }]) {
+    const response = (await gate('/Shop', { cookie: cookieFrom(await unlock('dvnclothing')), extra })).response;
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), 'PRIVATE STOREFRONT');
+    assert.equal((await gate('/Shop', { extra })).response.status, 302, 'Navigation metadata cannot authenticate a guest');
+  }
+});
+
+test('every launch entrance clears only the preview access, leaving customer identity and cooldown intact', async () => {
+  for (const path of ['/', '/launch', '/launch.html']) {
+    const response = (await gate(path, { cookie: await session() })).response;
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), 'PUBLIC COUNTDOWN');
+    assert.deepEqual(response.headers.getSetCookie().map(v => v.split('=')[0]), [previewName]);
+    assert.match(response.headers.getSetCookie()[0], /Max-Age=0$/);
+    assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
   }
 });

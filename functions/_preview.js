@@ -168,8 +168,13 @@ export async function grantPreview(response, env, state) {
   return response;
 }
 
-export function clearPreview(response) {
+export function clearPreviewAccess(response) {
   clearCookie(response, previewCookie);
+  return response;
+}
+
+export function clearPreview(response) {
+  clearPreviewAccess(response);
   clearCookie(response, attemptsCookie);
   return response;
 }

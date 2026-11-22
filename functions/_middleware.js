@@ -1,4 +1,4 @@
-import { hasPreview, previewJson, safePreviewNext } from './_preview.js';
+import { clearPreviewAccess, hasPreview, previewJson, safePreviewNext } from './_preview.js';
 import { privatePages } from './_private-pages.js';
 
 const publicPages = new Map([
@@ -15,7 +15,7 @@ const privateModels = /^\/assets\/models\/(?:blue-mirage-black|blue-mirage-white
 const privateViewer = /^\/assets\/vendor\/model-viewer(?:\.min\.js|-LICENSE\.txt)$/;
 const fontAsset = /^\/assets\/fonts\/[a-zA-Z0-9_-]+\.woff2?$/;
 const mailPage = /^\/mail\/(?:login|bonus)\/(?:de|en)(?:\.html)?$/;
-const storefrontPage = /^\/(?:index(?:\.html)?|shop(?:\.html)?)?\/?$/;
+const storefrontPage = /^\/(?:index(?:\.html)?|shop(?:\.html)?)?\/?$/i;
 const productPage = /^\/(?:product(?:\.html)?|products(?:\/[a-zA-Z0-9-]+)?)\/?$/;
 const checkoutPage = /^\/checkout(?:\.html)?\/?$/;
 // Pinned model-viewer 4.0.0 shadow stylesheet. GLB ImageBitmap textures are
@@ -102,7 +102,17 @@ function locked(request) {
   const destination = new URL('/', 'https://dvnclothing.com');
   destination.searchParams.set('preview', 'required');
   destination.searchParams.set('next', safePreviewNext(url.pathname + url.search));
-  return responseHeaders(Response.redirect(destination.href, 302), { privateContent: true, varyCookie: true });
+  return clearPreviewAccess(responseHeaders(Response.redirect(destination.href, 302), { privateContent: true, varyCookie: true }));
+}
+
+// Entry behaviour only: authentication always requires the signed preview cookie.
+// Typed/bookmarked/external links must return to the password entrance even when
+// an earlier visit left a valid cookie. Internal shopping navigation stays usable.
+function internalNavigation(request) {
+  const site = request.headers.get('Sec-Fetch-Site');
+  if (site) return site === 'same-origin';
+  try { return new URL(request.headers.get('Referer')).origin === new URL(request.url).origin; }
+  catch { return false; }
 }
 
 async function previewMiddleware(context, pages) {
@@ -125,7 +135,9 @@ async function previewMiddleware(context, pages) {
   try {
     // The homepage is always the launch entrance, including for returning
     // preview visitors. Successful password entry continues to /shop.
-    if (path === '/') return await asset(context, '/launch', { html: true, varyCookie: true });
+    if (path === '/' || publicPages.get(path) === '/launch') {
+      return clearPreviewAccess(await asset(context, '/launch', { html: true, varyCookie: true }));
+    }
     if (publicPages.has(path)) return await asset(context, publicPages.get(path), { html: true });
     if (mailPage.test(path)) return await asset(context, path.replace(/\.html$/, ''), { html: true });
     if (publicCode.test(path) || publicImages.test(path) || fontAsset.test(path) || path === '/assets/fonts/OFL-Manrope.txt') {
@@ -137,7 +149,7 @@ async function previewMiddleware(context, pages) {
     const privateAsset = privateCode.test(path) || privateImages.test(path) || privateModels.test(path) || privateViewer.test(path) || path === '/catalog.json';
     if (!store && !product && !checkout && !privateAsset) return error(404);
     const unlocked = await hasPreview(request, context.env);
-    if (!unlocked) return privateAsset ? previewJson({ error: 'preview_required' }, 401) : locked(request);
+    if (!unlocked || (!privateAsset && !internalNavigation(request))) return privateAsset ? previewJson({ error: 'preview_required' }, 401) : locked(request);
     if (path === '/catalog.json') return privateDocument(request, pages, '/catalog.json');
     if (privateAsset) return await asset(context, path, { privateContent: true, varyCookie: true });
     // These documents exist only in the function bundle, never in the static
