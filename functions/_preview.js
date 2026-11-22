@@ -116,7 +116,7 @@ export function safePreviewNext(value) {
     value.startsWith('//') || /[\\\u0000-\u0020\u007f]/.test(value)) return '/shop';
   try {
     const target = new URL(value, audience);
-    if (target.origin !== audience || !/^\/(?:shop\/?|checkout\/?|products(?:\/[a-zA-Z0-9-]+)?\/?)$/.test(target.pathname)) return '/shop';
+    if (target.origin !== audience || !/^\/(?:admin\/orders|shop\/?|checkout\/?|products(?:\/[a-zA-Z0-9-]+)?\/?)$/.test(target.pathname)) return '/shop';
     return target.pathname + target.search + target.hash;
   } catch { return '/shop'; }
 }

@@ -18,6 +18,7 @@ export async function onRequestPost({request,env}) {
     const id=event.event_type==='CHECKOUT.ORDER.APPROVED'?event.resource?.id:event.resource?.supplementary_data?.related_ids?.order_id;
     if(typeof id!=='string')return reply({error:'invalid_event'},400);
     const order=await dbFor(env).prepare("SELECT * FROM shop_orders WHERE provider_id=? AND method='paypal'").bind(id).first();
+    if(order&&order.mode!==providerMode(env))return reply({error:'payment_mismatch'},400);
     if(order)await reconcile(env,order,{capture:event.event_type==='CHECKOUT.ORDER.APPROVED'});
     return reply({received:true});
   }catch(e){return reply({error:e instanceof CheckoutError?e.code:'webhook_unavailable'},e instanceof CheckoutError?e.status:503);}

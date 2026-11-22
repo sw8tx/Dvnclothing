@@ -1,0 +1,115 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Bestellungen | DVN CLOTHING</title><link rel="icon" href="/assets/brand/dvn-mail-avatar.png"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/account.css"><link rel="stylesheet" href="/admin-orders.css"><script src="/translations.js" defer></script><script src="/i18n.js" defer></script><script src="/auth.js" defer></script><script src="/admin-orders.js" defer></script></head><body>
+<header class="admin-header"><a href="/shop"><img src="/assets/brand/dvn-mail-wordmark.png" alt="DVN CLOTHING" width="120" height="49"></a><button type="button" data-google-auth aria-haspopup="dialog" aria-controls="account-dialog">Konto</button></header>
+<main class="admin-main"><p>DVN · BETREIBERBEREICH</p><h1>Bestellungen</h1><p id="admin-status" role="status">Zugriff wird geprüft.</p><button type="button" id="admin-login">Mit Betreiberkonto anmelden</button>
+<section id="admin-content" hidden><div class="admin-actions"><button type="button" id="admin-refresh">Aktualisieren</button><button type="button" id="admin-test">Discord-Testbestellung senden</button></div><p>Der Test verwendet erfundene Daten. Er bucht kein Geld ab und verändert weder Bestellungen noch Lagerbestand. Nur als bezahlt bestätigte Live-Bestellungen versenden.</p><p id="admin-feedback" role="status"></p><section id="admin-pending" aria-label="Offene Discord-Meldungen"></section><div id="admin-orders"></div><button type="button" id="admin-more" hidden>Ältere Bestellungen</button></section></main>
+<dialog class="account-dialog" id="account-dialog" aria-labelledby="account-title" aria-describedby="account-summary">
+
+<div class="account-top">
+      <img src="/assets/brand/dvn-mail-wordmark.png" width="96" height="40" alt="DVN CLOTHING">
+      <button type="button" class="account-close" data-account-close aria-label="Schließen" data-aria-de="Schließen" data-aria-en="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg></button>
+    </div>
+
+<div class="account-body">
+
+<p class="account-eyebrow" data-account-copy="eyebrow">DVN Konto</p>
+
+<h2 id="account-title" tabindex="-1">Willkommen zurück</h2>
+
+<p id="account-summary">Dein Anmeldestatus wird geladen.</p>
+
+<p class="account-alert" data-account-error role="alert" hidden></p>
+
+<p class="account-confirmation" data-account-feedback role="status" hidden></p>
+
+<div data-account-guest hidden>
+        <a class="account-google" data-account-start>
+          <svg width="19" height="19" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11c-.5 2.5-1.9 4.6-4.1 6v5h6.7c3.9-3.6 6-8.6 6-14.7Z"/><path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.6-4.9l-6.7-5c-1.9 1.2-4.2 1.9-6.9 1.9-5.3 0-9.8-3.6-11.4-8.4H5.7v5.2A20.3 20.3 0 0 0 24 44Z"/><path fill="#FBBC05" d="M12.6 27.6a12 12 0 0 1 0-7.2v-5.2H5.7a20.4 20.4 0 0 0 0 17.6l6.9-5.2Z"/><path fill="#EA4335" d="M24 12c3 0 5.6 1 7.7 3l5.8-5.8A20 20 0 0 0 24 4a20.3 20.3 0 0 0-18.3 11.2l6.9 5.2A12.1 12.1 0 0 1 24 12Z"/></svg>
+          <span data-account-copy="google">Mit Google fortfahren</span>
+        </a>
+
+<p class="account-method-note" data-google-pending data-account-copy="googlePending" hidden>Google-Anmeldung wird eingerichtet.</p>
+
+<div class="account-divider"><span data-account-copy="or">oder</span></div>
+
+<form data-account-email-form>
+          <label for="account-mail" data-account-copy="emailLabel">E-Mail-Adresse</label>
+          <input id="account-mail" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254" required placeholder="name@beispiel.de">
+          <button class="account-primary" type="submit" data-account-submit-email data-account-copy="send">Mit E-Mail fortfahren</button>
+
+<p class="account-service-notice" data-account-mail-service role="status" hidden></p>
+
+<p class="account-method-note" data-account-mail-hint>Wir senden dir einen einmaligen Anmeldecode.</p>
+        </form>
+
+<p class="account-method-note"><a href="/privacy.html" data-i18n="privacy.title">Datenschutzerklärung</a></p>
+      </div>
+
+<form data-account-link-form hidden>
+        <label for="account-link-email" data-account-copy="emailLabel">E-Mail-Adresse</label>
+        <input id="account-link-email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254" required aria-describedby="account-summary">
+        <button type="submit" class="account-primary" data-account-link-submit data-account-copy="linkSend">Bestätigungscode senden</button>
+        <button type="button" class="account-text-button" data-account-link-cancel data-account-copy="backAccount">Zurück zum Konto</button>
+      </form>
+
+<form data-account-code-form hidden>
+        <button type="button" class="account-text-button account-change-mail" data-account-back data-account-copy="changeEmail">E-Mail-Adresse ändern</button>
+        <label for="account-code" data-account-copy="codeLabel">Anmeldecode</label>
+
+<div class="account-code-box"><span aria-hidden="true">DVN-</span><input id="account-code" name="code" type="text" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" spellcheck="false" aria-describedby="account-code-hint" required placeholder="000000"></div>
+
+<p id="account-code-hint" class="account-code-hint" data-account-copy="codeHint">Die sechs Ziffern eingeben oder den ganzen Code einfügen.</p>
+
+<p class="account-code-timer" data-account-clock role="timer" aria-live="off"></p>
+        <button type="submit" class="account-primary" data-account-verify data-account-copy="verify">Code bestätigen</button>
+        <button type="button" class="account-text-button account-resend" data-account-resend>Code erneut senden</button>
+      </form>
+
+<div data-account-member hidden>
+
+<section class="account-bonus" data-account-bonus aria-labelledby="account-bonus-title" hidden>
+
+<p class="account-bonus-congrats" data-account-bonus-congrats data-account-copy="congrats" hidden>Glückwunsch und willkommen bei DVN!</p>
+
+<h3 id="account-bonus-title" data-account-copy="bonusTitle">15 % auf deine erste Bestellung</h3>
+
+<p data-account-bonus-description aria-live="polite"></p>
+
+<div class="account-bonus-code" data-account-bonus-row hidden><code data-account-bonus-code></code>
+            <button type="button" class="account-copy-button" data-account-bonus-copy data-account-copy="copyCode">Code kopieren</button>
+          </div>
+          <button type="button" class="account-text-button" data-account-bonus-claim hidden>Erneut prüfen</button>
+          <span class="visually-hidden" data-account-bonus-live role="status"></span>
+        </section>
+
+<div class="account-identity"><span class="account-avatar" data-dialog-avatar aria-hidden="true"></span>
+<div><strong data-account-name></strong><span data-account-email></span><span class="account-provider" data-account-provider></span></div>
+</div>
+        <button type="button" class="account-text-button account-link-method" data-account-link hidden>Anmeldemethode verbinden</button>
+        <button type="button" class="account-secondary" data-account-edit data-account-copy="edit">Profil bearbeiten</button>
+
+<p class="account-profile-status" data-account-profile-status data-account-copy="profileOffline" hidden>Dein gespeichertes Profil ist gerade nicht verfügbar.</p>
+        <button type="button" class="account-text-button" data-account-profile-retry data-account-copy="profileRetry" hidden>Profil erneut laden</button>
+        <button type="button" class="account-text-button" data-account-logout data-account-copy="logout">Abmelden</button>
+      </div>
+
+<form data-account-profile-form hidden>
+
+<p class="account-edit-connection"><span data-edit-provider></span><strong data-edit-email></strong></p>
+
+<div class="account-photo-row"><span class="account-avatar" data-edit-avatar aria-hidden="true"></span>
+<div>
+          <label class="account-upload" for="account-photo"><span data-account-copy="changePhoto">Foto auswählen</span>
+            <input id="account-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
+          <button type="button" class="account-text-button" data-remove-photo data-account-copy="removePhoto">Foto entfernen</button>
+        </div>
+</div>
+        <label for="account-display-name" data-account-copy="nameLabel">Anzeigename</label>
+        <input id="account-display-name" type="text" autocomplete="nickname" maxlength="64" required>
+        <button type="submit" class="account-primary" data-account-save data-account-copy="save">Änderungen speichern</button>
+        <button type="button" class="account-text-button" data-account-cancel data-account-copy="cancel">Abbrechen</button>
+      </form>
+      <button type="button" class="account-text-button" data-account-restart data-account-copy="restart" hidden>Zur Anmeldung</button>
+      <button class="account-secondary" type="button" data-account-retry data-account-copy="retry" hidden>Erneut prüfen</button>
+    </div>
+  </dialog>
+</body></html>

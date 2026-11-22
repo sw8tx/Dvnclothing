@@ -8,7 +8,7 @@ const publicPages = new Map([
   ['/terms', '/terms'], ['/terms.html', '/terms'],
 ]);
 const publicCode = /^\/(?:styles|hero|footer|legal|launch|countdown|translations|i18n|auth|account)(?:\.[a-f0-9]{16})?\.(?:css|js)$/;
-const privateCode = /^\/(?:shop|storefront|store-cart|product|checkout|shirt-viewer)(?:\.[a-f0-9]{16})?\.(?:css|js)$/;
+const privateCode = /^\/(?:shop|storefront|store-cart|product|checkout|shirt-viewer|admin-orders)(?:\.[a-f0-9]{16})?\.(?:css|js)$/;
 const publicImages = /^\/assets\/(?:brand\/|social\/|payments\/)?[a-zA-Z0-9_-]+\.(?:png|webp|jpe?g|svg|ico|css)$/;
 const privateImages = /^\/assets\/(?:shop|products|lookbook)\/[a-zA-Z0-9_-]+\.(?:png|webp|jpe?g|svg)$/;
 const privateModels = /^\/assets\/models\/(?:blue-mirage-black|blue-mirage-white|define-your-vision|blue-sunshine|purple-sunshine)\.glb$/;
@@ -146,8 +146,9 @@ async function previewMiddleware(context, pages) {
     const store = storefrontPage.test(path);
     const product = productPage.test(path);
     const checkout = checkoutPage.test(path);
+    const admin = path === '/admin/orders';
     const privateAsset = privateCode.test(path) || privateImages.test(path) || privateModels.test(path) || privateViewer.test(path) || path === '/catalog.json';
-    if (!store && !product && !checkout && !privateAsset) return error(404);
+    if (!store && !product && !checkout && !admin && !privateAsset) return error(404);
     const unlocked = await hasPreview(request, context.env);
     if (!unlocked || (!privateAsset && !internalNavigation(request))) return privateAsset ? previewJson({ error: 'preview_required' }, 401) : locked(request);
     if (path === '/catalog.json') return privateDocument(request, pages, '/catalog.json');
@@ -155,7 +156,7 @@ async function previewMiddleware(context, pages) {
     // These documents exist only in the function bundle, never in the static
     // deployment. If Pages bypasses functions after exhausting its allowance,
     // static serving can return the public launch page but no private document.
-    return privateDocument(request, pages, product ? '/product' : checkout ? '/checkout' : '/shop');
+    return privateDocument(request, pages, admin ? '/admin/orders' : product ? '/product' : checkout ? '/checkout' : '/shop');
   } catch {
     return error(503);
   }

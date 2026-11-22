@@ -12,7 +12,9 @@ async function handle({request,env},post) {
     const value=await readJson(request);
     if(!value||Object.keys(value).sort().join(',')!=='action,id'||!['refresh','complete','cancel'].includes(value.action))throw new CheckoutError('invalid_request');
     const order=await getOrder(env,user,value.id);
-    await reconcile(env,order,{capture:value.action==='complete',cancel:value.action==='cancel'});
+    try{await reconcile(env,order,{capture:value.action==='complete',cancel:value.action==='cancel'});}
+    catch(e){if(!(e instanceof CheckoutError&&e.code==='notification_pending'))throw e;}
+    // A delayed staff notification must never make a verified customer payment look failed.
     return reply({order:publicOrder(await getOrder(env,user,value.id))});
   }catch(e){return reply({error:e instanceof CheckoutError?e.code:'order_unavailable'},e instanceof CheckoutError?e.status:503);}
 }

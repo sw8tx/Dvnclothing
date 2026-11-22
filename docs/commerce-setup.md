@@ -115,3 +115,53 @@ Official references: [Stripe Checkout](https://docs.stripe.com/api/checkout/sess
 [Stripe webhook signatures](https://docs.stripe.com/webhooks/signature),
 [PayPal Orders](https://developer.paypal.com/api/orders/v2),
 [PayPal webhook verification](https://developer.paypal.com/api/webhooks/v1).
+
+## Operator orders and Discord notifications
+
+Apply `migrations/0007_order_notifications.sql` after 0006. It is additive and
+idempotent; it does not replenish stock. Set these **production** variables:
+
+- `DISCORD_ORDER_WEBHOOK_URL`: encrypted Cloudflare Secret. Never commit it,
+  include it in client code, logs or customer responses.
+- `COMMERCE_ADMIN_EMAILS`: comma-separated verified sign-in addresses permitted
+  to view all orders. Empty means no administrator. Do not use a shared mailbox.
+
+Open `https://dvnclothing.com/admin/orders`, enter the preview password and sign
+in using the configured operator account. The API checks the server allowlist
+on every request; the preview password alone is insufficient. Orders paginate
+20 at a time. No periodic database polling is used.
+
+**Discord-Testbestellung senden** creates a synthetic notification only, using
+`example.invalid` and an unmistakable `TESTBESTELLUNG – NICHT VERSENDEN` label.
+It does not create a shop order, contact a payment provider, debit money, reduce
+stock or consume a discount. Idempotent request keys and a one-minute global
+simulation limit prevent repeated clicks from flooding the channel. This is
+not a replacement for the merchant sandbox acceptance tests above.
+
+Real notifications are enqueued atomically when provider-verified orders become
+paid. Messages contain order ID, items/variants/quantities, totals, contact email,
+shipping name/street/postcode/city/country, payment method and transaction ID.
+Card numbers, CVC, expiry dates and provider credentials are never included.
+Only allowlisted shipping fields are retained from provider responses. PayPal
+approval additionally verifies order ID, purchase-unit count and the entire
+required shipping address before initiating capture.
+
+Use a restricted staff-only Discord channel. The operator must configure its
+membership and review Discord data handling before enabling real sales. The
+webhook token is a sending credential: rotate it in Discord if it is disclosed
+outside trusted administration, then replace the Cloudflare Secret and redeploy.
+
+Delivery uses `wait=true`, requires Discord's message ID, blocks mentions,
+rejects non-Discord destinations and redirects, and times out after 10 seconds.
+A 60-second atomic lease prevents concurrent sends; 429 backoff is respected.
+Provider webhook retries retry an already-paid order's outstanding notification
+without recapturing money or reserving stock again. Failures stay in the outbox;
+the operator can retry them in the orders page after the backoff. A delayed
+Discord message does not change the customer's paid order status.
+
+There is no independent background scheduler. After provider retries stop,
+check the pending list and retry manually. Delivery is **at least once**: if
+Discord accepts a request but its response is lost, a retry can duplicate the
+message. Always fulfil by unique order ID and verified paid live status, not
+by the number of Discord messages. Never fulfil simulations or sandbox orders.
+No automatic shipment, refund or customer confirmation email is implemented.

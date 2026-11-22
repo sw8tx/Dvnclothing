@@ -33,7 +33,8 @@ export async function ready(env) {
   try {
     const result=await dbFor(env).prepare('SELECT product_id,size,available FROM shop_inventory').bind().all();
     return catalog.products.every(p=>p.sizes.every(size=>result.results.some(r=>r.product_id===p.id&&r.size===size)))
-      && Boolean(await dbFor(env).prepare('SELECT count(*) AS n FROM shop_orders').bind().first());
+      && Boolean(env.DISCORD_ORDER_WEBHOOK_URL)
+      && Boolean(await dbFor(env).prepare('SELECT id FROM shop_notifications LIMIT 1').bind().all());
   } catch { return false; }
 }
 export function payload(value) {

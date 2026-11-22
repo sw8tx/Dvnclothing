@@ -357,3 +357,13 @@ test('every launch entrance clears only the preview access, leaving customer ide
     assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
   }
 });
+
+test('operator shell is password-gated, never a public static document, with a safe return target',async()=>{
+  const pages={...privateDocuments,'/admin/orders':{body:'OPERATOR SHELL WITHOUT ORDER DATA',type:'text/html; charset=utf-8'}};
+  const locked=await gate('/admin/orders',{pages});assert.equal(locked.response.status,302);
+  const unlockResponse=await unlock('dvnclothing',{next:'/admin/orders'});assert.equal((await unlockResponse.clone().json()).redirect,'/admin/orders');
+  const open=await gate('/admin/orders',{cookie:cookieFrom(unlockResponse),pages});assert.equal(open.response.status,200);assert.match(open.response.headers.get('Cache-Control'),/no-store/);
+  assert.equal((await gate('/admin-orders.html',{cookie:cookieFrom(unlockResponse),pages})).response.status,404);
+  const {onRequestGet}=await import('../functions/api/admin/orders.js');
+  const denied=await onRequestGet({request:request('/api/admin/orders',{cookie:cookieFrom(unlockResponse)}),env:{...env,COMMERCE_ADMIN_EMAILS:'owner@example.test'}});assert.equal(denied.status,401);
+});

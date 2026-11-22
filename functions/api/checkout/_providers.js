@@ -1,5 +1,6 @@
 import { CheckoutError } from './_lib.js';
 import { dbFor, catalog } from './_commerce.js';
+import { validShipping,retainedShipping,notifyPaid } from './_notifications.js';
 
 const site='https://dvnclothing.com';
 const euros=cents=>(cents/100).toFixed(2);
@@ -84,25 +85,27 @@ export function validateStripe(order,session) {
   const address=session.collected_information?.shipping_details||session.shipping_details;
   if(session.id!==order.provider_id||session.client_reference_id!==order.id||session.metadata?.dvn_order_id!==order.id
     ||session.livemode!==(order.mode==='live')||session.currency!=='eur'||session.amount_total!==order.total_cents
-    ||session.payment_status!=='paid'||session.status!=='complete'||address?.address?.country!=='DE'
+    ||session.payment_status!=='paid'||session.status!=='complete'||!validShipping(address,'card')
     ||typeof session.payment_intent!=='string')throw new CheckoutError('payment_verification_failed',409);
-  return {paymentId:session.payment_intent,shipping:address};
+  return {paymentId:session.payment_intent,shipping:retainedShipping(address,'card')};
 }
 export function validatePayPal(order,result,merchant) {
   const unit=result.purchase_units?.[0],capture=unit?.payments?.captures?.[0];
   if(result.id!==order.provider_id||result.status!=='COMPLETED'||result.purchase_units?.length!==1
-    ||unit.custom_id!==order.id||unit.payee?.merchant_id!==merchant||unit.shipping?.address?.country_code!=='DE'
+    ||unit.custom_id!==order.id||unit.payee?.merchant_id!==merchant||!validShipping(unit.shipping,'paypal')
     ||unit.payments?.captures?.length!==1||capture?.status!=='COMPLETED'||capture?.amount?.currency_code!=='EUR'
     ||capture?.amount?.value!==euros(order.total_cents)||!capture?.id)throw new CheckoutError('payment_verification_failed',409);
-  return {paymentId:capture.id,shipping:unit.shipping};
+  return {paymentId:capture.id,shipping:retainedShipping(unit.shipping,'paypal')};
 }
 async function paid(env,order,proof) {
   await dbFor(env).prepare(`UPDATE shop_orders SET status='paid',payment_id=?,fulfilment_json=?,
     paid_at=unixepoch(),updated_at=unixepoch() WHERE id=? AND status IN ('pending','capturing')`)
     .bind(proof.paymentId,JSON.stringify(proof.shipping),order.id).run();
+  await notifyPaid(env,order.id);
 }
 export async function reconcile(env,order,{capture=false,cancel=false}={}) {
-  if(['paid','cancelled'].includes(order.status))return;
+  if(order.status==='paid'){await notifyPaid(env,order.id);return;}
+  if(order.status==='cancelled')return;
   if(!order.provider_id)throw new CheckoutError('payment_review_required',409);
   if(order.method==='card'){
     let session=await stripe(env,order.mode,'checkout/sessions/'+encodeURIComponent(order.provider_id));
@@ -121,8 +124,8 @@ export async function reconcile(env,order,{capture=false,cancel=false}={}) {
         await dbFor(env).prepare(`UPDATE shop_orders SET status='cancelled',updated_at=unixepoch() WHERE id=? AND status='pending'`).bind(order.id).run();return;
       }
       const unit=result.purchase_units?.[0];
-      if(unit?.custom_id!==order.id||unit?.amount?.currency_code!=='EUR'||unit?.amount?.value!==euros(order.total_cents)
-        ||unit?.payee?.merchant_id!==env.PAYPAL_MERCHANT_ID||unit?.shipping?.address?.country_code!=='DE')throw new CheckoutError('shipping_or_payment_invalid',409);
+      if(result.id!==order.provider_id||result.purchase_units?.length!==1||unit?.custom_id!==order.id||unit?.amount?.currency_code!=='EUR'||unit?.amount?.value!==euros(order.total_cents)
+        ||unit?.payee?.merchant_id!==env.PAYPAL_MERCHANT_ID||!validShipping(unit?.shipping,'paypal'))throw new CheckoutError('shipping_or_payment_invalid',409);
       const lock=await dbFor(env).prepare(`UPDATE shop_orders SET status='capturing',updated_at=unixepoch() WHERE id=? AND status='pending' AND created_at>=unixepoch()-3600 RETURNING id`).bind(order.id).first();
       // One capture request only. A timeout is reconciled with GET; never retried as a new charge.
       if(lock){

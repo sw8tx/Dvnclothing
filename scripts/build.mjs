@@ -7,11 +7,11 @@ import { writeMailViews } from './mail-views.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const output=path.join(root,'dist');
 const publicPages=['launch.html','impressum.html','terms.html','privacy.html'];
-const protectedPages={'/shop':'index.html','/product':'product.html','/checkout':'checkout.html'};
+const protectedPages={'/shop':'index.html','/product':'product.html','/checkout':'checkout.html','/admin/orders':'admin-orders.html'};
 const sourcePages=[...publicPages,...Object.values(protectedPages)];
 const documents=new Map(await Promise.all(sourcePages.map(async file=>[file,await readFile(path.join(root,file),'utf8')])));
-const styles=['account.css','styles.css','hero.css','footer.css','legal.css','shop.css','storefront.css','launch.css','shirt-viewer.css'];
-const scripts=['countdown.js','translations.js','i18n.js','auth.js','shop.js','storefront.js','store-cart.js','launch.js','shirt-viewer.js'];
+const styles=['admin-orders.css','account.css','styles.css','hero.css','footer.css','legal.css','shop.css','storefront.css','launch.css','shirt-viewer.css'];
+const scripts=['admin-orders.js','countdown.js','translations.js','i18n.js','auth.js','shop.js','storefront.js','store-cart.js','launch.js','shirt-viewer.js'];
 const catalog=JSON.parse(await readFile(path.join(root,'catalog.json'),'utf8'));
 for(const p of catalog.products){
   if(!p.id||!Number.isSafeInteger(p.priceCents)||p.priceCents<=0||!p.sizes.length)throw new Error('Invalid catalog entry');
@@ -52,7 +52,7 @@ routes.exclude=[...new Set(routes.exclude)];
 for(const route of routes.exclude){if(route.includes('*')||!(await stat(path.join(output,route))).isFile())throw new Error(`Unsafe route exclusion: ${route}`);}
 await writeFile(path.join(output,'_routes.json'),JSON.stringify(routes,null,2)+'\n');
 await writeMailViews(output);
-for(const file of ['product.html','checkout.html','catalog.json','functions/_private-pages.js']){
+for(const file of ['admin-orders.html','product.html','checkout.html','catalog.json','functions/_private-pages.js']){
   try{await stat(path.join(output,file));throw new Error(`Private source leaked to dist: ${file}`);}catch(e){if(e.code!=='ENOENT')throw e;}
 }
 console.log('Build ready: public launch, bundled private shop, verified catalog and exact static routes.');

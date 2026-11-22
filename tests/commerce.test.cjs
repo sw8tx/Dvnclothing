@@ -5,7 +5,7 @@ const {DatabaseSync}=require('node:sqlite');
 const site='https://dvnclothing.com',secret='commerce-test-cookie-secret-32-characters';
 function database(){
   const sqlite=new DatabaseSync(':memory:');
-  for(const name of ['0002_profiles','0003_welcome_bonus','0004_account_links','0006_commerce'])sqlite.exec(fs.readFileSync(require.resolve('../migrations/'+name+'.sql'),'utf8'));
+  for(const name of ['0002_profiles','0003_welcome_bonus','0004_account_links','0006_commerce','0007_order_notifications'])sqlite.exec(fs.readFileSync(require.resolve('../migrations/'+name+'.sql'),'utf8'));
   const binding={prepare(sql){const stmt=sqlite.prepare(sql);return {bind(...args){return {
     first:async()=>stmt.get(...args)||null,
     all:async()=>({results:stmt.all(...args)}),run:async()=>({meta:stmt.run(...args)})};}};}};
@@ -102,14 +102,14 @@ test('account carts persist, isolate accounts, reject stale writes and migrate o
 test('Stripe proof verifies identity, amount, currency, mode and German shipping before fulfilment',async()=>{
   const {validateStripe}=await import('../functions/api/checkout/_providers.js');
   const order={id:'order',provider_id:'cs_test_1',mode:'test',total_cents:2490};
-  const session={id:'cs_test_1',client_reference_id:'order',metadata:{dvn_order_id:'order'},livemode:false,currency:'eur',amount_total:2490,payment_status:'paid',status:'complete',payment_intent:'pi_1',collected_information:{shipping_details:{address:{country:'DE'}}}};
+  const session={id:'cs_test_1',client_reference_id:'order',metadata:{dvn_order_id:'order'},livemode:false,currency:'eur',amount_total:2490,payment_status:'paid',status:'complete',payment_intent:'pi_1',collected_information:{shipping_details:{name:'Testkunde',address:{country:'DE',postal_code:'12345',city:'Musterstadt',line1:'Musterstraße 1'}}}};
   assert.equal(validateStripe(order,session).paymentId,'pi_1');
   for(const patch of [{amount_total:1},{currency:'usd'},{livemode:true},{id:'other'},{client_reference_id:'other'},{payment_status:'unpaid'},{status:'open'},{collected_information:{shipping_details:{address:{country:'FR'}}}}])assert.throws(()=>validateStripe(order,{...session,...patch}),{code:'payment_verification_failed'});
 });
 test('PayPal proof rejects wrong merchant, pending capture, partial and duplicate captures',async()=>{
   const {validatePayPal}=await import('../functions/api/checkout/_providers.js');
   const order={id:'order',provider_id:'PP1',total_cents:2490};
-  const result={id:'PP1',status:'COMPLETED',purchase_units:[{custom_id:'order',payee:{merchant_id:'merchant'},shipping:{address:{country_code:'DE'}},payments:{captures:[{id:'CAP1',status:'COMPLETED',amount:{currency_code:'EUR',value:'24.90'}}]}}]};
+  const result={id:'PP1',status:'COMPLETED',purchase_units:[{custom_id:'order',payee:{merchant_id:'merchant'},shipping:{name:{full_name:'Testkunde'},address:{country_code:'DE',postal_code:'12345',admin_area_2:'Musterstadt',address_line_1:'Musterstraße 1'}},payments:{captures:[{id:'CAP1',status:'COMPLETED',amount:{currency_code:'EUR',value:'24.90'}}]}}]};
   assert.equal(validatePayPal(order,result,'merchant').paymentId,'CAP1');
   assert.throws(()=>validatePayPal(order,result,'another'),{code:'payment_verification_failed'});
   for(const change of [r=>r.purchase_units[0].payments.captures[0].status='PENDING',r=>r.purchase_units[0].payments.captures[0].amount.value='1.00',r=>r.purchase_units[0].payments.captures.push(r.purchase_units[0].payments.captures[0]),r=>r.purchase_units[0].shipping.address.country_code='US']){const copy=structuredClone(result);change(copy);assert.throws(()=>validatePayPal(order,copy,'merchant'),{code:'payment_verification_failed'});}
@@ -140,7 +140,7 @@ test('duplicate Stripe notifications mark paid once without reserving additional
   const db=database(),env=activeEnv(db.env),o=await reserve(env,await user(),selection());
   db.sqlite.prepare("UPDATE shop_orders SET provider_id='cs_test_1',status='pending' WHERE id=?").run(o.id);
   const read=()=>db.sqlite.prepare('SELECT * FROM shop_orders WHERE id=?').get(o.id);
-  t.mock.method(globalThis,'fetch',async()=>Response.json({id:'cs_test_1',client_reference_id:o.id,metadata:{dvn_order_id:o.id},livemode:false,currency:'eur',amount_total:2490,payment_status:'paid',status:'complete',payment_intent:'pi_1',shipping_details:{address:{country:'DE'}}}));
+  t.mock.method(globalThis,'fetch',async()=>Response.json({id:'cs_test_1',client_reference_id:o.id,metadata:{dvn_order_id:o.id},livemode:false,currency:'eur',amount_total:2490,payment_status:'paid',status:'complete',payment_intent:'pi_1',shipping_details:{name:'Testkunde',address:{country:'DE',postal_code:'12345',city:'Musterstadt',line1:'Musterstraße 1'}}}));
   await reconcile(env,read());await reconcile(env,read());assert.equal(read().status,'paid');
   assert.equal(db.sqlite.prepare('SELECT sum(available) n FROM shop_inventory').get().n,74);db.sqlite.close();
 });
@@ -152,7 +152,7 @@ test('PayPal capture timeout retains stock and cannot charge a second time',asyn
   t.mock.method(globalThis,'fetch',async url=>{
     if(url.endsWith('/token'))return Response.json({access_token:'token'});
     if(url.endsWith('/capture')){captures++;throw Error('network lost');}
-    return Response.json({id:'PP1',status:'APPROVED',purchase_units:[{custom_id:o.id,amount:{currency_code:'EUR',value:'24.90'},payee:{merchant_id:'merchant'},shipping:{address:{country_code:'DE'}}}]});
+    return Response.json({id:'PP1',status:'APPROVED',purchase_units:[{custom_id:o.id,amount:{currency_code:'EUR',value:'24.90'},payee:{merchant_id:'merchant'},shipping:{name:{full_name:'Testkunde'},address:{country_code:'DE',postal_code:'12345',admin_area_2:'Musterstadt',address_line_1:'Musterstraße 1'}}}]});
   });
   await assert.rejects(reconcile(env,read(),{capture:true}),{code:'payment_unavailable'});
   await reconcile(env,read(),{capture:true});await reconcile(env,read(),{cancel:true});
@@ -169,4 +169,90 @@ test('a paid order clears only the exact purchased cart, never newer selections'
   db.sqlite.prepare('UPDATE account_carts SET items_json=? WHERE owner_id=?').run(JSON.stringify(selection(2).items),u.id);
   const next=await reserve(db.env,u,selection());db.sqlite.prepare("UPDATE shop_orders SET status='paid' WHERE id=?").run(next.id);
   assert.equal(JSON.parse(db.sqlite.prepare('SELECT items_json FROM account_carts WHERE owner_id=?').get(u.id).items_json)[0].quantity,2);db.sqlite.close();
+});
+
+const fakeWebhook='https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+test('shipping proof requires a usable address and retains only fulfilment fields',async()=>{
+  const {validShipping,retainedShipping}=await import('../functions/api/checkout/_notifications.js');
+  const shipping={name:'Testkunde',address:{country:'DE',postal_code:'12345',city:'Stadt',line1:'Straße 1'},card_number:'never-store',phone:'unneeded'};
+  assert.equal(validShipping(shipping,'card'),true);
+  for(const key of ['name','line1','city','postal_code']){const copy=structuredClone(shipping);if(key==='name')copy.name='';else copy.address[key]='';assert.equal(validShipping(copy,'card'),false,key);}
+  const safe=retainedShipping(shipping,'card');assert.equal(safe.card_number,undefined);assert.equal(safe.phone,undefined);assert.equal(safe.address.line1,'Straße 1');
+});
+test('Discord destination rejects non-Discord hosts, redirects, ports and injected query parameters',async()=>{
+  const {discordURL}=await import('../functions/api/checkout/_notifications.js');
+  assert.equal(discordURL(fakeWebhook),fakeWebhook+'?wait=true');
+  for(const url of ['https://evil.test/api/webhooks/123/abc',fakeWebhook+'?thread_id=1',fakeWebhook+'#fragment',fakeWebhook.replace('discord.com','discord.com.evil.test'),fakeWebhook.replace('https:','http:'),fakeWebhook.replace('discord.com','name@discord.com'),fakeWebhook.replace('discord.com','discord.com:444')])assert.throws(()=>discordURL(url),{code:'notification_not_configured'});
+});
+test('Discord embeds preserve email and neutralize mentions; simulations never claim a payment',async()=>{
+  const {notificationBody,simulationOrder}=await import('../functions/api/checkout/_notifications.js');
+  const order=simulationOrder('simulation-example');order.email='test@example.invalid';
+  const body=notificationBody(order,{simulation:true});assert.deepEqual(body.allowed_mentions,{parse:[],users:[],roles:[]});
+  assert.match(body.embeds[0].title,/TESTBESTELLUNG/);assert.match(JSON.stringify(body),/test@example.invalid/);
+  assert.doesNotMatch(JSON.stringify(body),/card_number|cvv|client_secret/);assert.match(body.embeds[0].description,/Keine Abbuchung/);
+});
+test('paid transition atomically creates one durable Discord job, including after migration replay',async()=>{
+  const {reserve}=await import('../functions/api/checkout/_commerce.js'),db=database(),u=await user();
+  const o=await reserve(db.env,u,selection());assert.equal(db.sqlite.prepare('SELECT count(*) n FROM shop_notifications').get().n,0);
+  db.sqlite.prepare("UPDATE shop_orders SET status='paid' WHERE id=?").run(o.id);db.sqlite.prepare("UPDATE shop_orders SET status='paid' WHERE id=?").run(o.id);
+  db.sqlite.exec(fs.readFileSync(require.resolve('../migrations/0007_order_notifications.sql'),'utf8'));
+  assert.equal(db.sqlite.prepare('SELECT count(*) n FROM shop_notifications').get().n,1);assert.equal(db.sqlite.prepare('SELECT sum(available) n FROM shop_inventory').get().n,74);db.sqlite.close();
+});
+test('Discord failures leave paid orders intact; duplicate payment events retry the same outbox job',async t=>{
+  const {reserve}=await import('../functions/api/checkout/_commerce.js'),{reconcile}=await import('../functions/api/checkout/_providers.js');
+  const db=database(),env={...activeEnv(db.env),DISCORD_ORDER_WEBHOOK_URL:fakeWebhook},o=await reserve(env,await user(),selection());
+  db.sqlite.prepare("UPDATE shop_orders SET provider_id='cs_test_1',status='pending' WHERE id=?").run(o.id);
+  const read=()=>db.sqlite.prepare('SELECT * FROM shop_orders WHERE id=?').get(o.id);let discord=0;
+  t.mock.method(globalThis,'fetch',async url=>{
+    if(url.startsWith('https://discord.com/')){discord++;return discord===1?new Response('',{status:503}):Response.json({id:'123456789012345679'});}
+    return Response.json({id:'cs_test_1',client_reference_id:o.id,metadata:{dvn_order_id:o.id},livemode:false,currency:'eur',amount_total:2490,payment_status:'paid',status:'complete',payment_intent:'pi_1',shipping_details:{name:'Testkunde',address:{country:'DE',postal_code:'12345',city:'Musterstadt',line1:'Musterstraße 1'}}});
+  });
+  await assert.rejects(reconcile(env,read()),{code:'notification_pending'});assert.equal(read().status,'paid');
+  assert.equal(db.sqlite.prepare('SELECT status FROM shop_notifications').get().status,'pending');
+  db.sqlite.exec('UPDATE shop_notifications SET retry_at=0');await reconcile(env,read());await reconcile(env,read());
+  assert.equal(discord,2);assert.equal(db.sqlite.prepare('SELECT status FROM shop_notifications').get().status,'sent');
+  assert.equal(db.sqlite.prepare('SELECT sum(available) n FROM shop_inventory').get().n,74);db.sqlite.close();
+});
+test('outbox claim prevents simultaneous Discord delivery and respects rate-limit backoff',async t=>{
+  const {deliverNotification,simulationOrder}=await import('../functions/api/checkout/_notifications.js');
+  const db=database(),env={...db.env,DISCORD_ORDER_WEBHOOK_URL:fakeWebhook};
+  db.sqlite.prepare('INSERT INTO shop_notifications(id,simulation_json) VALUES(?,?)').run('test',JSON.stringify(simulationOrder('test')));
+  let calls=0;t.mock.method(globalThis,'fetch',async()=>{calls++;return Response.json({retry_after:120},{status:429});});
+  await Promise.all([deliverNotification(env,'test'),deliverNotification(env,'test')]);assert.equal(calls,1);
+  await deliverNotification(env,'test');assert.equal(calls,1);
+  const row=db.sqlite.prepare('SELECT * FROM shop_notifications').get();assert.equal(row.last_error,'rate_limited');assert.ok(row.retry_at>=Math.floor(Date.now()/1000)+118);assert.equal(row.lease_token,null);db.sqlite.close();
+});
+test('admin routes deny anonymous and other accounts, enforce Origin and never use preview password as admin',async()=>{
+  const {onRequestGet,onRequestPost}=await import('../functions/api/admin/orders.js'),db=database();
+  const env={...db.env,COMMERCE_ADMIN_EMAILS:'owner@example.test',DISCORD_ORDER_WEBHOOK_URL:fakeWebhook};
+  assert.equal((await onRequestGet({env,request:new Request(site+'/api/admin/orders')})).status,401);
+  assert.equal((await onRequestGet({env,request:await request('/api/admin/orders')})).status,403);
+  assert.equal((await onRequestPost({env,request:new Request(site+'/api/admin/orders',{method:'POST',headers:{Origin:'https://evil.test'}})})).status,403);
+  assert.equal(db.sqlite.prepare('SELECT count(*) n FROM shop_notifications').get().n,0);db.sqlite.close();
+});
+test('operator simulation is idempotent, rate limited and cannot write orders or change stock',async t=>{
+  const {onRequestGet,onRequestPost}=await import('../functions/api/admin/orders.js'),db=database();
+  const env={...db.env,COMMERCE_ADMIN_EMAILS:'one@example.test',DISCORD_ORDER_WEBHOOK_URL:fakeWebhook};let calls=0;
+  t.mock.method(globalThis,'fetch',async(url,opts)=>{calls++;assert.equal(url,fakeWebhook+'?wait=true');const body=JSON.parse(opts.body);assert.match(body.embeds[0].title,/TESTBESTELLUNG/);return Response.json({id:'123456789012345679'});});
+  const body={action:'simulate',key:crypto.randomUUID()},call=async value=>onRequestPost({env,request:await request('/api/admin/orders',value)});
+  assert.equal((await call(body)).status,200);assert.equal((await call(body)).status,200);assert.equal(calls,1);
+  assert.equal((await call({...body,key:crypto.randomUUID()})).status,429);
+  assert.equal((await call({...body,email:'evil@example.test'})).status,400);
+  assert.equal(db.sqlite.prepare('SELECT count(*) n FROM shop_orders').get().n,0);assert.equal(db.sqlite.prepare('SELECT sum(available) n FROM shop_inventory').get().n,75);
+  const data=await (await onRequestGet({env,request:await request('/api/admin/orders')})).json();assert.deepEqual(data.orders,[]);assert.equal(data.webhookConfigured,true);assert.doesNotMatch(JSON.stringify(data),/abcdefghijklmnopqrstuvwxyz|AUTH_COOKIE_SECRET/);db.sqlite.close();
+});
+test('administrator sees shipping while customer order responses never expose recipient details',async()=>{
+  const {onRequestGet}=await import('../functions/api/admin/orders.js'),{reserve,publicOrder}=await import('../functions/api/checkout/_commerce.js');
+  const db=database(),env={...db.env,COMMERCE_ADMIN_EMAILS:'one@example.test'},o=await reserve(env,await user('buyer@example.test'),selection());
+  db.sqlite.prepare("UPDATE shop_orders SET status='paid',fulfilment_json=? WHERE id=?").run(JSON.stringify({name:'Recipient',address:{country:'DE',postal_code:'12345',city:'Stadt',line1:'Straße 1'}}),o.id);
+  const row=db.sqlite.prepare('SELECT * FROM shop_orders WHERE id=?').get(o.id);assert.equal(publicOrder(row).email,undefined);assert.equal(publicOrder(row).fulfilment_json,undefined);
+  const data=await (await onRequestGet({env,request:await request('/api/admin/orders')})).json();assert.equal(data.orders[0].email,'buyer@example.test');assert.equal(data.orders[0].shipping.name,'Recipient');db.sqlite.close();
+});
+test('a Discord outage does not turn a paid customer order into a failed checkout response',async t=>{
+  const {reserve}=await import('../functions/api/checkout/_commerce.js'),{onRequestPost}=await import('../functions/api/checkout/order.js');
+  const db=database(),env={...db.env,DISCORD_ORDER_WEBHOOK_URL:fakeWebhook},o=await reserve(env,await user(),selection());
+  db.sqlite.prepare("UPDATE shop_orders SET status='paid' WHERE id=?").run(o.id);
+  t.mock.method(globalThis,'fetch',async()=>new Response('',{status:503}));
+  const response=await onRequestPost({env,request:await request('/api/checkout/order',{action:'refresh',id:o.id})});
+  assert.equal(response.status,200);assert.equal((await response.json()).order.status,'paid');db.sqlite.close();
 });
