@@ -1,0 +1,56 @@
+{
+  "mode": "Built-in image generation",
+  "note": "AI-generated catalog visualisations. Side and back garment fit is illustrative; unprinted backs are assumed except for the supplied Define Your Vision back reference.",
+  "products": {
+    "blue-mirage-black": {
+      "source": "/workspace/scratch/74ecb736cbe2/generated_images/exec-116ac067-5ffe-446e-b324-db129f1f8043.png",
+      "prompt": "Use case: product-mockup. Create a premium ecommerce photography contact sheet in an EXACT equal 2 by 2 grid, each quadrant a separate square photograph on pure white (#ffffff), no borders, no labels, no text outside the garment. Reference image is the exact T-shirt design: preserve its printed eyes artwork, blue DVN CLOTHING script, proportions, black fabric, crewneck and oversized fit meticulously. Top left: neatly arranged front flatlay of only the entire T-shirt centered with generous white margin. Top right: photorealistic adult male fashion model age 23 with natural skin and short dark hair wearing the shirt, straight-on front view, framed from head to mid thigh, black trousers, relaxed arms. Bottom left: the SAME model and clothing in a clear SIDE PROFILE, head to mid thigh, whole shirt visible. Bottom right: SAME model viewed directly FROM BEHIND, head to mid thigh, plain unprinted black back. Natural realistic cotton drape and seams, soft even high-end studio lighting, no plastic skin, no polygon meshes, no CGI mannequin. All four subjects completely contained within their quadrant, no crossing center lines. Output square high resolution contact sheet to be separated into four individual catalog photographs.",
+      "outputs": [
+        "/assets/products/blue-mirage-black-studio-v2.webp",
+        "/assets/products/blue-mirage-black-model-front-v2.webp",
+        "/assets/products/blue-mirage-black-model-side-v2.webp",
+        "/assets/products/blue-mirage-black-model-back-v2.webp"
+      ]
+    },
+    "blue-mirage-white": {
+      "source": "/workspace/scratch/74ecb736cbe2/generated_images/exec-4f35f2cd-dd49-417e-8de3-068314be3381.png",
+      "prompt": "Use case: product-mockup. Create a premium ecommerce photography contact sheet in an EXACT equal 2 by 2 grid, four separate square photographs on pure white (#ffffff), no borders, no labels. Product reference: white fabric, eyes artwork and blue DVN CLOTHING lettering. Preserve print size, artwork, lettering, color and relaxed oversized crewneck cut. Second reference is layout and model identity only; replace its black eyes shirt with this product. Match that contact sheet's same adult male model with natural skin, curly dark hair and black trousers, same framing and soft studio lighting. Top left: product-only front flatlay, entire shirt centered with white margins. Top right: model wearing the shirt facing straight forward, head to mid thigh. Bottom left: same model in SIDE PROFILE, whole shirt visible. Bottom right: same model directly FROM BEHIND, plain unprinted white back. Model arms relaxed. Natural cotton drape, refined photorealism, no plastic skin or polygon meshes. Each subject stays within its own quadrant. Square high resolution contact sheet for separation into four catalog images.",
+      "outputs": [
+        "/assets/products/blue-mirage-white-studio-v2.webp",
+        "/assets/products/blue-mirage-white-model-front-v2.webp",
+        "/assets/products/blue-mirage-white-model-side-v2.webp",
+        "/assets/products/blue-mirage-white-model-back-v2.webp"
+      ]
+    },
+    "blue-sunshine": {
+      "source": "/workspace/scratch/74ecb736cbe2/generated_images/exec-9dc9f0ce-fac3-4fbf-853c-64c743a5f9de.png",
+      "prompt": "Use case: product-mockup. Create a premium ecommerce photography contact sheet in an EXACT equal 2 by 2 grid, four separate square photographs on pure white (#ffffff), no borders, no labels. Product reference: black fabric with exact large cyan oval, white DVN block letters and black CLOTHING script from the product reference. Preserve print size, artwork, lettering, color and relaxed oversized crewneck cut. Second reference is layout and model identity only; replace its black eyes shirt with this product. Match that contact sheet's same adult male model with natural skin, curly dark hair and black trousers, same framing and soft studio lighting. Top left: product-only front flatlay, entire shirt centered with white margins. Top right: model wearing the shirt facing straight forward, head to mid thigh. Bottom left: same model in SIDE PROFILE, whole shirt visible. Bottom right: same model directly FROM BEHIND, plain unprinted black back. Model arms relaxed. Natural cotton drape, refined photorealism, no plastic skin or polygon meshes. Each subject stays within its own quadrant. Square high resolution contact sheet for separation into four catalog images.",
+      "outputs": [
+        "/assets/products/blue-sunshine-studio-v2.webp",
+        "/assets/products/blue-sunshine-model-front-v2.webp",
+        "/assets/products/blue-sunshine-model-side-v2.webp",
+        "/assets/products/blue-sunshine-model-back-v2.webp"
+      ]
+    },
+    "purple-sunshine": {
+      "source": "/workspace/scratch/74ecb736cbe2/generated_images/exec-21f3d37e-7b43-4ecd-9bb7-69d2d481b9b0.png",
+      "prompt": "Use case: product-mockup. Create a premium ecommerce photography contact sheet in an EXACT equal 2 by 2 grid, four separate square photographs on pure white (#ffffff), no borders, no labels. Product reference: white fabric with exact purple oval, black DVN block letters and black CLOTHING script from the product reference. Preserve print size, artwork, lettering, color and relaxed oversized crewneck cut. Second reference is layout and model identity only; replace its black eyes shirt with this product. Match that contact sheet's same adult male model with natural skin, curly dark hair and black trousers, same framing and soft studio lighting. Top left: product-only front flatlay, entire shirt centered with white margins. Top right: model wearing the shirt facing straight forward, head to mid thigh. Bottom left: same model in SIDE PROFILE, whole shirt visible. Bottom right: same model directly FROM BEHIND, plain unprinted white back. Model arms relaxed. Natural cotton drape, refined photorealism, no plastic skin or polygon meshes. Each subject stays within its own quadrant. Square high resolution contact sheet for separation into four catalog images.",
+      "outputs": [
+        "/assets/products/purple-sunshine-studio-v2.webp",
+        "/assets/products/purple-sunshine-model-front-v2.webp",
+        "/assets/products/purple-sunshine-model-side-v2.webp",
+        "/assets/products/purple-sunshine-model-back-v2.webp"
+      ]
+    },
+    "define-your-vision": {
+      "source": "/workspace/scratch/74ecb736cbe2/generated_images/exec-f2f975fc-1599-4579-92e4-c4a308c5198a.png",
+      "prompt": "Use case: product-mockup. Create a premium ecommerce photography contact sheet in an EXACT equal 2 by 2 grid, four separate square photographs on pure white (#ffffff), no borders, no labels. Product reference: charcoal fabric, white DVN and 26 separated at upper chest and DEFINE YOUR VISION below, match reference image 1 exactly. Preserve print size, artwork, lettering, color and relaxed oversized crewneck cut. Second reference is the exact BACK design. Third reference is layout and model identity only. Match that contact sheet's same adult male model with natural skin, curly dark hair and black trousers, same framing and soft studio lighting. Top left: product-only front flatlay, entire shirt centered with white margins. Top right: model wearing the shirt facing straight forward, head to mid thigh. Bottom left: same model in SIDE PROFILE, whole shirt visible. Bottom right: same model directly FROM BEHIND, back mountain line artwork and MORE THAN A BRAND A LIFESTYLE text exactly from reference image 2. Model arms relaxed. Natural cotton drape, refined photorealism, no plastic skin or polygon meshes. Each subject stays within its own quadrant. Square high resolution contact sheet for separation into four catalog images.",
+      "outputs": [
+        "/assets/products/define-your-vision-studio-v2.webp",
+        "/assets/products/define-your-vision-model-front-v2.webp",
+        "/assets/products/define-your-vision-model-side-v2.webp",
+        "/assets/products/define-your-vision-model-back-v2.webp"
+      ]
+    }
+  }
+}

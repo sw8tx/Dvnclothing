@@ -130,11 +130,11 @@ function productCard(p){
   const info=make('a','product-card-info');info.href=a.href;info.append(make('h3','',p.name),make('span','',money(p.priceCents)),make('p','',p.color[lang()]));article.append(media,info);return article;
 }
 function productImages(){
-  const images=currentProduct.images.map((src,i)=>({src,label:i===0?t('Produktansicht','Product view'):t('Rückansicht','Back view'),isModel:false}));
-  // On-body meshes are withheld until their geometry and textures pass visual review.
-  // Keep original product and styling photos available in the gallery.
-  if(currentProduct.id!=='define-your-vision')images.push({src:'/assets/lookbook/'+currentProduct.id+'.jpg',label:t('KI-generierte Styling-Visualisierung','AI-generated styling visualisation'),isModel:true});
-  return images;
+  return currentProduct.gallery.map(item=>({
+    ...item,
+    label:item.label[lang()],
+    caption:item.label[lang()]+(item.generated?t(' · KI-Visualisierung',' · AI visualisation'):'')
+  }));
 }
 function showProductImage(index){
   const images=productImages();selectedImage=(index+images.length)%images.length;const item=images[selectedImage];
@@ -143,7 +143,7 @@ function showProductImage(index){
     shirtViewer ||= createShirtViewer($('#product-3d-view'),currentProduct);
     shirtViewer.show();$('#product-image-caption').textContent=t('360° · Shirt am Model drehen','360° · Rotate the model wearing the tee');
   }else{
-    shirtViewer?.hide();const main=$('#product-main-image');main.src=item.src;main.alt=currentProduct.name+' – '+item.label;main.classList.toggle('is-lookbook',item.isModel);$('#product-image-caption').textContent=item.isModel?item.label:t('Original-Produktfoto','Original product photo');
+    shirtViewer?.hide();const main=$('#product-main-image');main.src=item.src;main.alt=currentProduct.name+' – '+item.caption;$('#product-image-caption').textContent=item.caption;
   }
   $('#gallery-position').textContent=(selectedImage+1)+' / '+images.length;
   $$('#product-thumbnails button').forEach((button,i)=>{button.setAttribute('aria-pressed',String(i===selectedImage));button.setAttribute('aria-label',images[i].label);});
