@@ -55,6 +55,7 @@ function assets() {
     if (['/account.css', '/account.0123456789abcdef.css'].includes(url.pathname)) {
       return new Response('.account-dialog { width: 450px; }', { headers: { 'Content-Type': 'text/css' } });
     }
+    if (url.pathname === '/assets/dvn-emblem.png') return new Response(req.method === 'HEAD' ? null : 'PUBLIC BRAND ICON', { headers: { 'Content-Type': 'image/png' } });
     if (url.pathname === '/assets/shop/black.webp') return new Response('private image', { headers: { 'Content-Type': 'image/webp' } });
     // Model Pages fallback behavior rather than returning a convenient 404.
     return new Response('PUBLIC STATIC FALLBACK', { headers: { 'Content-Type': 'text/html' } });
@@ -366,4 +367,18 @@ test('operator shell is password-gated, never a public static document, with a s
   assert.equal((await gate('/admin-orders.html',{cookie:cookieFrom(unlockResponse),pages})).response.status,404);
   const {onRequestGet}=await import('../functions/api/admin/orders.js');
   const denied=await onRequestGet({request:request('/api/admin/orders',{cookie:cookieFrom(unlockResponse)}),env:{...env,COMMERCE_ADMIN_EMAILS:'owner@example.test'}});assert.equal(denied.status,401);
+});
+
+
+test('brand favicon is available without a preview session and has an image response', async () => {
+  for (const path of ['/favicon.ico', '/assets/dvn-emblem.png']) {
+    for (const method of ['GET', 'HEAD']) {
+      const { response, fixture } = await gate(path, { method, settings: {} });
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get('Content-Type'), 'image/png');
+      assert.equal(response.headers.get('X-Robots-Tag'), null);
+      assert.equal(fixture.fetched[0].path, '/assets/dvn-emblem.png');
+      assert.equal(await response.text(), method === 'HEAD' ? '' : 'PUBLIC BRAND ICON');
+    }
+  }
 });

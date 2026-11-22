@@ -138,6 +138,8 @@ async function previewMiddleware(context, pages) {
     if (path === '/' || publicPages.get(path) === '/launch') {
       return clearPreviewAccess(await asset(context, '/launch', { html: true, varyCookie: true }));
     }
+    // The conventional browser icon URL uses the same public, square brand mark.
+    if (path === '/favicon.ico') return await asset(context, '/assets/dvn-emblem.png');
     if (publicPages.has(path)) return await asset(context, publicPages.get(path), { html: true });
     if (mailPage.test(path)) return await asset(context, path.replace(/\.html$/, ''), { html: true });
     if (publicCode.test(path) || publicImages.test(path) || fontAsset.test(path) || path === '/assets/fonts/OFL-Manrope.txt') {
