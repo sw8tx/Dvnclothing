@@ -278,7 +278,10 @@ async function checkout(){
     const result=await response.json();if(expectedKey!==storageKey)return;
     if(!response.ok){if(response.status===401){checkoutReady=false;await window.DVNAuth?.requireLogin?.();}throw new Error(result.error);}
     const url=new URL(result.url);const allowed=['checkout.stripe.com','www.paypal.com','www.sandbox.paypal.com'];
-    if(url.protocol!=='https:'||url.username||url.password||url.port||!allowed.includes(url.hostname))throw new Error('destination');
+    // Only provider HTTPS links without embedded credentials or custom ports are allowed.
+    const hasCredentials = url.username !== '' || url.password !== '';
+    const hasUnexpectedOrigin = url.protocol !== 'https:' || url.port !== '' || !allowed.includes(url.hostname);
+    if (hasCredentials || hasUnexpectedOrigin) throw new Error('destination');
     location.assign(url.href);
   }catch(e){if(expectedKey===storageKey){
     const messages={invalid_delivery:t('Bitte prüfe deinen Namen und die vollständige Lieferadresse.','Please check your name and full delivery address.'),invalid_phone:t('Bitte prüfe deine Telefonnummer.','Please check your phone number.'),stock_unavailable:t('Die gewünschte Menge ist nicht mehr verfügbar. Bitte passe deinen Warenkorb an.','The requested quantity is no longer available. Please update your bag.'),pending_order:t('Du hast noch einen offenen Bezahlvorgang. Öffne ihn unten unter Bestellungen oder brich ihn ab, bevor du deine Angaben änderst.','You have a pending checkout. Continue or cancel it under orders before changing your details.'),unauthenticated:t('Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.','Your session expired. Please sign in again.')};
