@@ -11,6 +11,7 @@ const privateDocuments = {
   '/shop': { body: 'PRIVATE STOREFRONT', type: 'text/html; charset=utf-8' },
   '/product': { body: 'PRIVATE PRODUCT', type: 'text/html; charset=utf-8' },
   '/checkout': { body: 'PRIVATE CHECKOUT', type: 'text/html; charset=utf-8' },
+  '/admin/orders': { body: 'PRIVATE ADMIN', type: 'text/html; charset=utf-8' },
   '/catalog.json': { body: '{"products":["private"]}', type: 'application/json; charset=utf-8' },
 };
 
@@ -233,6 +234,23 @@ test('returning preview visitors still see the launch entrance at the homepage',
   assert.equal((await result.json()).redirect, '/shop');
   const shop = (await gate('/shop', { cookie: cookieFrom(result) })).response;
   assert.equal(await shop.text(), 'PRIVATE STOREFRONT');
+});
+
+test('a signed Google admin return bypasses only the external-navigation check once', async () => {
+  const previewCookie = await session();
+  const { seal } = await import('../functions/api/auth/_lib.js');
+  const returnToken = await seal({ purpose: 'google-admin-return', exp: Math.floor(Date.now() / 1000) + 90 }, env.AUTH_COOKIE_SECRET + ':admin-return-v1');
+  const returnCookie = '__Host-dvn-admin-return=' + returnToken;
+  const external = { 'Sec-Fetch-Site': 'cross-site', Referer: 'https://accounts.google.com/' };
+  const rejected = await gate('/admin/orders?login=complete', { cookie: previewCookie, extra: external });
+  assert.equal(rejected.response.status, 302);
+  const accepted = await gate('/admin/orders?login=complete', { cookie: previewCookie + '; ' + returnCookie, extra: external });
+  assert.equal(accepted.response.status, 200);
+  assert.equal(await accepted.response.text(), 'PRIVATE ADMIN');
+  assert.match(accepted.response.headers.get('Set-Cookie'), /__Host-dvn-admin-return=;.*Max-Age=0/);
+  assert.equal((await gate('/admin/orders?login=complete', { cookie: returnCookie, extra: external })).response.status, 302);
+  assert.equal((await gate('/shop?login=complete', { cookie: previewCookie + '; ' + returnCookie, extra: external })).response.status, 302);
+  assert.equal((await gate('/admin/orders?login=complete', { cookie: previewCookie + '; ' + returnCookie.replace(/.$/, 'x'), extra: external })).response.status, 302);
 });
 
 test('valid preview sessions serve the intended documents and disable all shared and browser caching', async () => {

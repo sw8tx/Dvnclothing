@@ -138,6 +138,22 @@ test('a verified Google callback exchanges the code and creates a usable session
   assert.deepEqual(cartAliases, []);
   assert.deepEqual(user, profile);
 
+  // Admin sign-in must return to the admin page rather than the public
+  // countdown. The transient return cookie is distinct from the login session.
+  const adminStart = await start({ request: new Request(site + '/api/auth/start?next=admin'), env });
+  const adminAuthorization = new URL(adminStart.headers.get('Location')).searchParams;
+  expectedChallenge = adminAuthorization.get('code_challenge');
+  idToken = await signClaims({ ...claims, nonce: adminAuthorization.get('nonce') });
+  const adminUrl = new URL(callbackUrl);
+  adminUrl.searchParams.set('state', adminAuthorization.get('state'));
+  const adminResponse = await callback({ request: new Request(adminUrl, {
+    headers: { Cookie: adminStart.headers.get('Set-Cookie').split(';')[0] },
+  }), env });
+  assert.equal(adminResponse.headers.get('Location'), site + '/admin/orders?login=complete');
+  const returnCookie = adminResponse.headers.getSetCookie().find(value => value.startsWith('__Host-dvn-admin-return='));
+  assert.match(returnCookie, /Secure; HttpOnly; SameSite=Lax; Max-Age=90$/);
+  assert.equal((await (await import('../functions/api/auth/_lib.js')).unseal(returnCookie.split(';')[0].split('=')[1], env.AUTH_COOKIE_SECRET + ':admin-return-v1')).purpose, 'google-admin-return');
+
   // The user is signed in by email, requests linking, then completes Google OAuth.
   const sql = new DatabaseSync(':memory:');
   t.after(() => sql.close());

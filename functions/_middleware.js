@@ -1,5 +1,6 @@
 import { clearPreviewAccess, hasPreview, previewJson, safePreviewNext } from './_preview.js';
 import { privatePages } from './_private-pages.js';
+import { clearCookie, cookie, unseal } from './api/auth/_lib.js';
 
 const publicPages = new Map([
   ['/launch', '/launch'], ['/launch.html', '/launch'],
@@ -152,13 +153,23 @@ async function previewMiddleware(context, pages) {
     const privateAsset = privateCode.test(path) || privateImages.test(path) || privateModels.test(path) || privateViewer.test(path) || path === '/catalog.json';
     if (!store && !product && !checkout && !admin && !privateAsset) return error(404);
     const unlocked = await hasPreview(request, context.env);
-    if (!unlocked || (!privateAsset && !internalNavigation(request))) return privateAsset ? previewJson({ error: 'preview_required' }, 401) : locked(request);
+    // Google returns from a different origin. Permit that single landing only
+    // when the callback issued a short-lived signed return token. Preview access
+    // is still mandatory and all admin data is checked separately by its API.
+    let adminReturn = false;
+    if (admin && url.searchParams.get('login') === 'complete' && context.env.AUTH_COOKIE_SECRET?.length >= 32) {
+      const claim = await unseal(cookie(request, '__Host-dvn-admin-return'), context.env.AUTH_COOKIE_SECRET + ':admin-return-v1');
+      adminReturn = claim?.purpose === 'google-admin-return';
+    }
+    if (!unlocked || (!privateAsset && !internalNavigation(request) && !adminReturn)) return privateAsset ? previewJson({ error: 'preview_required' }, 401) : locked(request);
     if (path === '/catalog.json') return privateDocument(request, pages, '/catalog.json');
     if (privateAsset) return await asset(context, path, { privateContent: true, varyCookie: true });
     // These documents exist only in the function bundle, never in the static
     // deployment. If Pages bypasses functions after exhausting its allowance,
     // static serving can return the public launch page but no private document.
-    return privateDocument(request, pages, admin ? '/admin/orders' : product ? '/product' : checkout ? '/checkout' : '/shop');
+    const response = privateDocument(request, pages, admin ? '/admin/orders' : product ? '/product' : checkout ? '/checkout' : '/shop');
+    if (adminReturn) clearCookie(response, '__Host-dvn-admin-return');
+    return response;
   } catch {
     return error(503);
   }

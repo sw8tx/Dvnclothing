@@ -39,10 +39,12 @@ export async function onRequestGet({ request, env }) {
       return finish(linked ? 'linked' : 'link_conflict');
     }
     const session = await seal({ ...profile, exp: Math.floor(Date.now() / 1000) + 604800 }, env.AUTH_COOKIE_SECRET);
-    const response = noStore(Response.redirect(`${site}/?login=complete`, 302));
+    const admin = pending.destination === 'admin';
+    const response = noStore(Response.redirect(admin ? `${site}/admin/orders?login=complete` : `${site}/?login=complete`, 302));
     clearCookie(response, '__Host-dvn-pending');
     clearCookie(response, '__Host-dvn-email-challenge');
     setCookie(response, '__Host-dvn-session', session, 604800);
+    if (admin) setCookie(response, '__Host-dvn-admin-return', await seal({purpose:'google-admin-return',exp:Math.floor(Date.now()/1000)+90},env.AUTH_COOKIE_SECRET+':admin-return-v1'),90);
     return response;
   } catch {
     return finish(failed);

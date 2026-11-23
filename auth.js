@@ -324,7 +324,7 @@
     mail.placeholder = t.placeholder;
     const start = find('[data-account-start]');
     if (session.configured && !action) {
-      start.href = '/api/auth/start';
+      start.href = location.pathname === '/admin/orders' ? '/api/auth/start?next=admin' : '/api/auth/start';
       start.removeAttribute('aria-disabled');
     } else {
       start.removeAttribute('href');

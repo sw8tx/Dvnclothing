@@ -2,7 +2,7 @@ import { cookie, encode, noStore, origin, random, ready, seal, setCookie } from 
 import { profileConfigured, rawIdentity } from './_profile.js';
 import { body, mac } from './email/_shared.js';
 
-async function begin(env, site, linking) {
+async function begin(env, site, linking, destination = null) {
   const state = random();
   const nonce = random();
   const verifier = random();
@@ -15,7 +15,7 @@ async function begin(env, site, linking) {
   }).toString();
   if (linking) url.searchParams.set('prompt', 'select_account');
   const response = noStore(linking ? Response.json({ url: url.href }) : Response.redirect(url, 302));
-  const pending = await seal({ state, nonce, verifier, linking, exp: Math.floor(Date.now() / 1000) + 600 }, env.AUTH_COOKIE_SECRET);
+  const pending = await seal({ state, nonce, verifier, linking, destination, exp: Math.floor(Date.now() / 1000) + 600 }, env.AUTH_COOKIE_SECRET);
   setCookie(response, '__Host-dvn-pending', pending, 600);
   return response;
 }
@@ -25,7 +25,7 @@ export async function onRequestGet({ request, env }) {
   if (!site) return noStore(new Response('Unsupported host', { status: 400 }));
   if (new URL(request.url).origin !== site) return noStore(Response.redirect(site + '/api/auth/start', 302));
   if (!ready(env)) return noStore(new Response('Google login is being configured', { status: 503 }));
-  return begin(env, site, null);
+  return begin(env, site, null, new URL(request.url).searchParams.get('next') === 'admin' ? 'admin' : null);
 }
 
 export async function onRequestPost({ request, env }) {
