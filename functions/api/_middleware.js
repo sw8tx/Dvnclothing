@@ -1,6 +1,8 @@
 import { noStore, origin } from './auth/_lib.js';
 
 const methods = new Map([
+  ['/api/analytics', ['POST']],
+  ['/api/admin/analytics', ['GET']],
   ['/api/admin/orders', ['GET', 'POST']],
   ['/api/admin/access', ['POST']],
   ['/api/preview/unlock', ['POST']],

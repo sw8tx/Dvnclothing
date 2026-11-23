@@ -9,7 +9,7 @@ const publicPages = new Map([
   ['/privacy', '/privacy'], ['/privacy.html', '/privacy'],
   ['/terms', '/terms'], ['/terms.html', '/terms'],
 ]);
-const publicCode = /^\/(?:styles|hero|footer|legal|launch|countdown|translations|i18n|auth|account|admin-login)(?:\.[a-f0-9]{16})?\.(?:css|js)$/;
+const publicCode = /^\/(?:styles|hero|footer|legal|launch|countdown|translations|i18n|auth|account|admin-login|visitor-analytics)(?:\.[a-f0-9]{16})?\.(?:css|js)$/;
 const privateCode = /^\/(?:shop|storefront|store-cart|product|checkout|shirt-viewer|admin-orders)(?:\.[a-f0-9]{16})?\.(?:css|js)$/;
 const publicImages = /^\/assets\/(?:brand\/|social\/|payments\/)?[a-zA-Z0-9_-]+\.(?:png|webp|jpe?g|svg|ico|css)$/;
 const privateImages = /^\/assets\/(?:shop|products|lookbook)\/[a-zA-Z0-9_-]+\.(?:png|webp|jpe?g|svg)$/;

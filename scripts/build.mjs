@@ -10,8 +10,8 @@ const publicPages=['launch.html','impressum.html','terms.html','privacy.html'];
 const protectedPages={'/shop':'index.html','/product':'product.html','/checkout':'checkout.html','/admin/orders':'admin-orders.html','/admin/login':'admin-login.html'};
 const sourcePages=[...publicPages,...Object.values(protectedPages)];
 const documents=new Map(await Promise.all(sourcePages.map(async file=>[file,await readFile(path.join(root,file),'utf8')])));
-const styles=['admin-orders.css','account.css','styles.css','hero.css','footer.css','legal.css','shop.css','storefront.css','launch.css','shirt-viewer.css'];
-const scripts=['admin-login.js','admin-orders.js','countdown.js','translations.js','i18n.js','auth.js','shop.js','storefront.js','store-cart.js','launch.js','shirt-viewer.js'];
+const styles=['visitor-analytics.css','admin-orders.css','account.css','styles.css','hero.css','footer.css','legal.css','shop.css','storefront.css','launch.css','shirt-viewer.css'];
+const scripts=['visitor-analytics.js','admin-login.js','admin-orders.js','countdown.js','translations.js','i18n.js','auth.js','shop.js','storefront.js','store-cart.js','launch.js','shirt-viewer.js'];
 const catalog=JSON.parse(await readFile(path.join(root,'catalog.json'),'utf8'));
 for(const p of catalog.products){
   if(!p.id||!Number.isSafeInteger(p.priceCents)||p.priceCents<=0||!p.sizes.length)throw new Error('Invalid catalog entry');
