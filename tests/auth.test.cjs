@@ -153,6 +153,13 @@ test('a verified Google callback exchanges the code and creates a usable session
   const returnCookie = adminResponse.headers.getSetCookie().find(value => value.startsWith('__Host-dvn-admin-return='));
   assert.match(returnCookie, /Secure; HttpOnly; SameSite=Lax; Max-Age=90$/);
   assert.equal((await (await import('../functions/api/auth/_lib.js')).unseal(returnCookie.split(';')[0].split('=')[1], env.AUTH_COOKIE_SECRET + ':admin-return-v1')).purpose, 'google-admin-return');
+  const deniedUrl = new URL(adminUrl);
+  deniedUrl.searchParams.set('state', 'invalid');
+  const deniedResponse = await callback({ request: new Request(deniedUrl, {
+    headers: { Cookie: adminStart.headers.get('Set-Cookie').split(';')[0] },
+  }), env });
+  assert.equal(deniedResponse.headers.get('Location'), site + '/admin/orders?login=failed');
+  assert.ok(deniedResponse.headers.getSetCookie().some(value => value.startsWith('__Host-dvn-admin-return=')));
 
   // The user is signed in by email, requests linking, then completes Google OAuth.
   const sql = new DatabaseSync(':memory:');

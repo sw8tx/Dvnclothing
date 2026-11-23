@@ -248,6 +248,7 @@ test('a signed Google admin return bypasses only the external-navigation check o
   assert.equal(accepted.response.status, 200);
   assert.equal(await accepted.response.text(), 'PRIVATE ADMIN');
   assert.match(accepted.response.headers.get('Set-Cookie'), /__Host-dvn-admin-return=;.*Max-Age=0/);
+  assert.equal((await gate('/admin/orders?login=failed', { cookie: previewCookie + '; ' + returnCookie, extra: external })).response.status, 200);
   assert.equal((await gate('/admin/orders?login=complete', { cookie: returnCookie, extra: external })).response.status, 302);
   assert.equal((await gate('/shop?login=complete', { cookie: previewCookie + '; ' + returnCookie, extra: external })).response.status, 302);
   assert.equal((await gate('/admin/orders?login=complete', { cookie: previewCookie + '; ' + returnCookie.replace(/.$/, 'x'), extra: external })).response.status, 302);

@@ -9,9 +9,12 @@ export async function onRequestGet({ request, env }) {
   if (new URL(request.url).origin !== site) return noStore(new Response('Invalid host', { status: 400 }));
   const url = new URL(request.url);
   const pending = await unseal(cookie(request, '__Host-dvn-pending'), env.AUTH_COOKIE_SECRET);
-  function finish(status) {
-    const response = noStore(Response.redirect(site + '/?login=' + status, 302));
+  async function finish(status) {
+    const admin = pending?.destination === 'admin' && !pending.linking;
+    const destination = admin ? '/admin/orders' : '/';
+    const response = noStore(Response.redirect(site + destination + '?login=' + status, 302));
     clearCookie(response, '__Host-dvn-pending');
+    if (admin) setCookie(response, '__Host-dvn-admin-return', await seal({ purpose: 'google-admin-return', exp: Math.floor(Date.now() / 1000) + 90 }, env.AUTH_COOKIE_SECRET + ':admin-return-v1'), 90);
     return response;
   }
   const failed = pending?.linking ? 'link_failed' : 'failed';

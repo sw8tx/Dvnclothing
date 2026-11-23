@@ -157,7 +157,7 @@ async function previewMiddleware(context, pages) {
     // when the callback issued a short-lived signed return token. Preview access
     // is still mandatory and all admin data is checked separately by its API.
     let adminReturn = false;
-    if (admin && url.searchParams.get('login') === 'complete' && context.env.AUTH_COOKIE_SECRET?.length >= 32) {
+    if (admin && ['complete', 'failed'].includes(url.searchParams.get('login')) && context.env.AUTH_COOKIE_SECRET?.length >= 32) {
       const claim = await unseal(cookie(request, '__Host-dvn-admin-return'), context.env.AUTH_COOKIE_SECRET + ':admin-return-v1');
       adminReturn = claim?.purpose === 'google-admin-return';
     }
