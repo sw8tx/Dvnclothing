@@ -11,6 +11,7 @@ const privateDocuments = {
   '/shop': { body: 'PRIVATE STOREFRONT', type: 'text/html; charset=utf-8' },
   '/product': { body: 'PRIVATE PRODUCT', type: 'text/html; charset=utf-8' },
   '/checkout': { body: 'PRIVATE CHECKOUT', type: 'text/html; charset=utf-8' },
+  '/admin/login': { body: 'ADMIN LOGIN ONLY', type: 'text/html; charset=utf-8' },
   '/admin/orders': { body: 'PRIVATE ADMIN', type: 'text/html; charset=utf-8' },
   '/catalog.json': { body: '{"products":["private"]}', type: 'application/json; charset=utf-8' },
 };
@@ -246,12 +247,12 @@ test('a signed Google admin return bypasses only the external-navigation check o
   assert.equal(rejected.response.status, 302);
   const accepted = await gate('/admin/orders?login=complete', { cookie: previewCookie + '; ' + returnCookie, extra: external });
   assert.equal(accepted.response.status, 200);
-  assert.equal(await accepted.response.text(), 'PRIVATE ADMIN');
+  assert.equal(await accepted.response.text(), 'ADMIN LOGIN ONLY');
   assert.match(accepted.response.headers.get('Set-Cookie'), /__Host-dvn-admin-return=;.*Max-Age=0/);
   assert.equal((await gate('/admin/orders?login=failed', { cookie: previewCookie + '; ' + returnCookie, extra: external })).response.status, 200);
   assert.equal((await gate('/admin/orders?login=complete', { cookie: returnCookie, extra: external })).response.status, 302);
   assert.equal((await gate('/shop?login=complete', { cookie: previewCookie + '; ' + returnCookie, extra: external })).response.status, 302);
-  assert.equal((await gate('/admin/orders?login=complete', { cookie: previewCookie + '; ' + returnCookie.replace(/.$/, 'x'), extra: external })).response.status, 302);
+  assert.equal((await gate('/admin/orders?login=complete', { cookie: previewCookie + '; ' + (returnCookie+'tampered'), extra: external })).response.status, 302);
 });
 
 test('valid preview sessions serve the intended documents and disable all shared and browser caching', async () => {
@@ -388,6 +389,26 @@ test('operator shell is password-gated, never a public static document, with a s
   const denied=await onRequestGet({request:request('/api/admin/orders',{cookie:cookieFrom(unlockResponse)}),env:{...env,COMMERCE_ADMIN_EMAILS:'owner@example.test'}});assert.equal(denied.status,401);
 });
 
+
+test('admin HTML requires both the exact owner identity and admin password proof', async () => {
+  const preview=await session();
+  const {seal}=await import('../functions/api/auth/_lib.js');
+  const {grantAdmin}=await import('../functions/api/admin/_access.js');
+  const identity=async email=>'__Host-dvn-session='+await seal({sub:'email:'+email,email,exp:Math.floor(Date.now()/1000)+300},env.AUTH_COOKIE_SECRET);
+  const owner=await identity('account@dvnclothing.com'),other=await identity('other@example.test');
+  for(const cookie of [preview,preview+'; '+owner,preview+'; '+other,preview+'; '+owner+'forged']) {
+    const response=(await gate('/admin/orders',{cookie})).response;
+    assert.equal(await response.text(),'ADMIN LOGIN ONLY');
+  }
+  const proof=await grantAdmin(request('/api/admin/access',{cookie:owner}),env,'dvnclothing');
+  const adminCookie=cookieFrom(proof,'__Host-dvn-admin');
+  const open=(await gate('/admin/orders',{cookie:preview+'; '+owner+'; '+adminCookie})).response;
+  assert.equal(await open.text(),'PRIVATE ADMIN');
+  for(const cookie of [preview+'; '+other+'; '+adminCookie,preview+'; '+adminCookie]) {
+    assert.equal(await (await gate('/admin/orders',{cookie})).response.text(),'ADMIN LOGIN ONLY');
+  }
+  assert.equal((await gate('/admin-orders.js',{cookie:preview})).response.status,403);
+});
 
 test('brand favicon is available without a preview session and has an image response', async () => {
   for (const path of ['/favicon.ico', '/assets/dvn-emblem.png']) {

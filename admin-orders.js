@@ -34,7 +34,7 @@
         node('p',(o.method==='paypal'?'PayPal':'Karte über Stripe')+(o.paymentId?' · '+o.paymentId:''),contact);
       }
       next=data.next;$('#admin-more').hidden=!next;filterOrders();
-    }catch(e){if(version!==epoch)return;clear();$('#admin-password-form').hidden=e.message!==messages.admin_locked;$('#admin-login').hidden=e.message===messages.admin_locked;$('#admin-status').textContent=e.message;}
+    }catch(e){if(version!==epoch)return;clear();if([messages.unauthenticated,messages.forbidden,messages.admin_locked].includes(e.message)){location.reload();return;}$('#admin-password-form').hidden=e.message!==messages.admin_locked;$('#admin-login').hidden=e.message===messages.admin_locked;$('#admin-status').textContent=e.message;}
   }
   function empty(target,title,description){const el=node('div','',target,'admin-empty');node('strong',title,el);node('p',description,el);}
   function table(target,headers){target.replaceChildren();const t=node('table','',target,'admin-table'),head=node('tr','',node('thead','',t));headers.forEach(h=>node('th',h,head));return node('tbody','',t);}
@@ -54,6 +54,7 @@
   $('#admin-test').addEventListener('click',()=>{testKey ||= crypto.randomUUID();action({action:'simulate',key:testKey});});
   $('#admin-refresh').addEventListener('click',()=>load());$('#admin-more').addEventListener('click',()=>load(true));
   $('#admin-login').addEventListener('click',async()=>{if(await window.DVNAuth?.requireLogin())load();});
-  document.addEventListener('dvn:authchange',()=>{clear();load();});
+  document.addEventListener('dvn:authchange',event=>{clear();if(event.detail?.user?.email?.toLowerCase()==='account@dvnclothing.com')load();else location.reload();});
+  window.addEventListener('pageshow',event=>{if(event.persisted){clear();location.reload();}});
   window.addEventListener('pagehide',clear);load();
 })();

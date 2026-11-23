@@ -1,4 +1,5 @@
 import { clearPreviewAccess, hasPreview, previewJson, safePreviewNext } from './_preview.js';
+import { requireAdminAccess } from './api/admin/_access.js';
 import { privatePages } from './_private-pages.js';
 import { clearCookie, cookie, unseal } from './api/auth/_lib.js';
 
@@ -8,7 +9,7 @@ const publicPages = new Map([
   ['/privacy', '/privacy'], ['/privacy.html', '/privacy'],
   ['/terms', '/terms'], ['/terms.html', '/terms'],
 ]);
-const publicCode = /^\/(?:styles|hero|footer|legal|launch|countdown|translations|i18n|auth|account)(?:\.[a-f0-9]{16})?\.(?:css|js)$/;
+const publicCode = /^\/(?:styles|hero|footer|legal|launch|countdown|translations|i18n|auth|account|admin-login)(?:\.[a-f0-9]{16})?\.(?:css|js)$/;
 const privateCode = /^\/(?:shop|storefront|store-cart|product|checkout|shirt-viewer|admin-orders)(?:\.[a-f0-9]{16})?\.(?:css|js)$/;
 const publicImages = /^\/assets\/(?:brand\/|social\/|payments\/)?[a-zA-Z0-9_-]+\.(?:png|webp|jpe?g|svg|ico|css)$/;
 const privateImages = /^\/assets\/(?:shop|products|lookbook)\/[a-zA-Z0-9_-]+\.(?:png|webp|jpe?g|svg)$/;
@@ -163,11 +164,18 @@ async function previewMiddleware(context, pages) {
     }
     if (!unlocked || (!privateAsset && !internalNavigation(request) && !adminReturn)) return privateAsset ? previewJson({ error: 'preview_required' }, 401) : locked(request);
     if (path === '/catalog.json') return privateDocument(request, pages, '/catalog.json');
+    if (/^\/admin-orders(?:\.[a-f0-9]{16})?\.js$/.test(path)) {
+      try { await requireAdminAccess(request, context.env); } catch { return previewJson({ error: 'unauthorized' }, 403); }
+    }
     if (privateAsset) return await asset(context, path, { privateContent: true, varyCookie: true });
     // These documents exist only in the function bundle, never in the static
     // deployment. If Pages bypasses functions after exhausting its allowance,
     // static serving can return the public launch page but no private document.
-    const response = privateDocument(request, pages, admin ? '/admin/orders' : product ? '/product' : checkout ? '/checkout' : '/shop');
+    let adminPage = '/admin/orders';
+    if (admin) {
+      try { await requireAdminAccess(request, context.env); } catch { adminPage = '/admin/login'; }
+    }
+    const response = privateDocument(request, pages, admin ? adminPage : product ? '/product' : checkout ? '/checkout' : '/shop');
     if (adminReturn) clearCookie(response, '__Host-dvn-admin-return');
     return response;
   } catch {
