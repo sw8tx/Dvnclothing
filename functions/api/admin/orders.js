@@ -1,21 +1,13 @@
 import { storedDelivery } from '../checkout/_details.js';
-import { rawIdentity } from '../auth/_profile.js';
 import { dbFor,publicOrder } from '../checkout/_commerce.js';
 import { readJson,reply,CheckoutError,requestOrigin } from '../checkout/_lib.js';
 import { deliverNotification,simulationOrder,shippingDetails,discordURL } from '../checkout/_notifications.js';
+import { requireAdminAccess } from './_access.js';
 
-export async function requireAdmin(request,env) {
-  const user=await rawIdentity(request,env);
-  if(!user)throw new CheckoutError('unauthenticated',401);
-  // This list is server configuration, never a profile field, cookie role or submitted email.
-  const allowed=(env.COMMERCE_ADMIN_EMAILS||'').split(',').map(v=>v.trim().toLowerCase()).filter(Boolean);
-  if(!allowed.includes(user.email.toLowerCase()))throw new CheckoutError('forbidden',403);
-  return user;
-}
 async function handle({request,env},post) {
   const invalid=requestOrigin(request,post);if(invalid)return invalid;
   try {
-    await requireAdmin(request,env);
+    await requireAdminAccess(request,env);
     const db=dbFor(env);if(!db?.prepare)throw new CheckoutError('temporarily_unavailable',503);
     if(!post){
       const before=new URL(request.url).searchParams.get('before');
@@ -26,10 +18,21 @@ async function handle({request,env},post) {
         WHERE o.rowid<? ORDER BY o.rowid DESC LIMIT 21`).bind(before?Number(before):Number.MAX_SAFE_INTEGER).all();
       const rows=result.results.slice(0,20);
       const pending=await db.prepare("SELECT id,status,last_error,created_at FROM shop_notifications WHERE status<>'sent' ORDER BY created_at LIMIT 20").bind().all();
+      const totals=await db.prepare(`SELECT COUNT(*) orders,COALESCE(SUM(total_cents),0) sales,
+        COALESCE(SUM((SELECT SUM(CAST(json_extract(value,'$.quantity') AS INTEGER)) FROM json_each(items_json))),0) units
+        FROM shop_orders WHERE status='paid' AND mode='live'`).bind().first();
+      const stock=await db.prepare('SELECT COALESCE(SUM(available),0) available FROM shop_inventory').bind().first();
+      const daily=await db.prepare(`SELECT date(paid_at,'unixepoch') date,SUM(total_cents) cents FROM shop_orders
+        WHERE status='paid' AND mode='live' AND paid_at>=unixepoch()-7*86400 GROUP BY date(paid_at,'unixepoch')`).bind().all();
+      const today=new Date();const days=Array.from({length:7},(_,i)=>{
+        const date=new Date(Date.UTC(today.getUTCFullYear(),today.getUTCMonth(),today.getUTCDate()-6+i)).toISOString().slice(0,10);
+        return {date,cents:daily.results.find(r=>r.date===date)?.cents||0};
+      });
       return reply({orders:rows.map(o=>({...publicOrder(o),email:o.email,phone:storedDelivery(o)?.phone||'',
         shipping:shippingDetails(JSON.parse(o.fulfilment_json||'null'),o.method),paymentId:o.payment_id,
         notificationStatus:o.notification_status,notificationError:o.notification_error})),
-        next:result.results.length>20?rows.at(-1).cursor:null,pending:pending.results,webhookConfigured:Boolean(env.DISCORD_ORDER_WEBHOOK_URL)});
+        next:result.results.length>20?rows.at(-1).cursor:null,pending:pending.results,webhookConfigured:Boolean(env.DISCORD_ORDER_WEBHOOK_URL),
+        metrics:{orders:totals.orders,salesCents:totals.sales,units:totals.units,stock:stock.available,days}});
     }
     const value=await readJson(request,{limit:1024});
     if(!value||typeof value!=='object'||Array.isArray(value))throw new CheckoutError('invalid_request');

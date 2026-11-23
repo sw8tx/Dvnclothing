@@ -21,6 +21,15 @@ async function request(path,body,email='one@example.test',sub='email:'+email){
   return new Request(site+path,{method:body?'POST':'GET',headers:{Origin:site,'Content-Type':'application/json',
     Cookie:'__Host-dvn-session='+await seal({email,sub,exp:Math.floor(Date.now()/1000)+3600},secret)},body:body?JSON.stringify(body):undefined});
 }
+async function adminRequest(env,path,body,email='one@example.test'){
+  const original=await request(path,body,email);
+  const {grantAdmin}=await import('../functions/api/admin/_access.js');
+  const granted=await grantAdmin(original,env,'dvnclothing');
+  assert.equal(granted.status,200);
+  const headers=new Headers(original.headers);
+  headers.set('Cookie',headers.get('Cookie')+'; '+granted.headers.get('Set-Cookie').split(';')[0]);
+  return new Request(original,{headers});
+}
 async function bonus(db,u){const {digest}=await import('../functions/api/checkout/_commerce.js');
   db.sqlite.prepare('INSERT INTO welcome_bonuses(email_key,owner_id,code) VALUES(?,?,?)').run(await digest('dvn-welcome-v1:'+u.email),u.id,'DVN-WELCOME');}
 function activeEnv(env){return {...env,COMMERCE_ENABLED:'true',COMMERCE_MODE:'test',STRIPE_CHECKOUT_TEST_SECRET_KEY:'sk_test_checkout',
@@ -233,23 +242,37 @@ test('admin routes deny anonymous and other accounts, enforce Origin and never u
   assert.equal((await onRequestPost({env,request:new Request(site+'/api/admin/orders',{method:'POST',headers:{Origin:'https://evil.test'}})})).status,403);
   assert.equal(db.sqlite.prepare('SELECT count(*) n FROM shop_notifications').get().n,0);db.sqlite.close();
 });
+test('admin dashboard requires owner session and a short-lived password proof',async()=>{
+  const {onRequestPost}=await import('../functions/api/admin/access.js');
+  const {onRequestGet}=await import('../functions/api/admin/orders.js');
+  const db=database(),env={...db.env,COMMERCE_ADMIN_EMAILS:'one@example.test'};
+  const call=async(password,email='one@example.test')=>onRequestPost({env,request:await request('/api/admin/access',{password},email)});
+  assert.equal((await onRequestGet({env,request:await request('/api/admin/orders')})).status,403);
+  assert.equal((await call('wrong')).status,401);
+  assert.equal((await call('dvnclothing','other@example.test')).status,403);
+  const proof=await call('dvnclothing');assert.equal(proof.status,200);
+  const granted=await adminRequest(env,'/api/admin/orders');assert.equal((await onRequestGet({env,request:granted})).status,200);
+  const foreign=await request('/api/admin/orders',null,'other@example.test');
+  foreign.headers.set('Cookie',foreign.headers.get('Cookie')+'; '+proof.headers.get('Set-Cookie').split(';')[0]);
+  assert.equal((await onRequestGet({env,request:foreign})).status,403);db.sqlite.close();
+});
 test('operator simulation is idempotent, rate limited and cannot write orders or change stock',async t=>{
   const {onRequestGet,onRequestPost}=await import('../functions/api/admin/orders.js'),db=database();
   const env={...db.env,COMMERCE_ADMIN_EMAILS:'one@example.test',DISCORD_ORDER_WEBHOOK_URL:fakeWebhook};let calls=0;
   t.mock.method(globalThis,'fetch',async(url,opts)=>{calls++;assert.equal(url,fakeWebhook+'?wait=true');const body=JSON.parse(opts.body);assert.match(body.embeds[0].title,/TESTBESTELLUNG/);return Response.json({id:'123456789012345679'});});
-  const body={action:'simulate',key:crypto.randomUUID()},call=async value=>onRequestPost({env,request:await request('/api/admin/orders',value)});
+  const body={action:'simulate',key:crypto.randomUUID()},call=async value=>onRequestPost({env,request:await adminRequest(env,'/api/admin/orders',value)});
   assert.equal((await call(body)).status,200);assert.equal((await call(body)).status,200);assert.equal(calls,1);
   assert.equal((await call({...body,key:crypto.randomUUID()})).status,429);
   assert.equal((await call({...body,email:'evil@example.test'})).status,400);
   assert.equal(db.sqlite.prepare('SELECT count(*) n FROM shop_orders').get().n,0);assert.equal(db.sqlite.prepare('SELECT sum(available) n FROM shop_inventory').get().n,75);
-  const data=await (await onRequestGet({env,request:await request('/api/admin/orders')})).json();assert.deepEqual(data.orders,[]);assert.equal(data.webhookConfigured,true);assert.doesNotMatch(JSON.stringify(data),/abcdefghijklmnopqrstuvwxyz|AUTH_COOKIE_SECRET/);db.sqlite.close();
+  const data=await (await onRequestGet({env,request:await adminRequest(env,'/api/admin/orders')})).json();assert.deepEqual(data.orders,[]);assert.equal(data.webhookConfigured,true);assert.equal(data.metrics.salesCents,0);assert.doesNotMatch(JSON.stringify(data),/abcdefghijklmnopqrstuvwxyz|AUTH_COOKIE_SECRET/);db.sqlite.close();
 });
 test('administrator sees shipping while customer order responses never expose recipient details',async()=>{
   const {onRequestGet}=await import('../functions/api/admin/orders.js'),{reserve,publicOrder}=await import('../functions/api/checkout/_commerce.js');
   const db=database(),env={...db.env,COMMERCE_ADMIN_EMAILS:'one@example.test'},o=await reserve(env,await user('buyer@example.test'),selection());
   db.sqlite.prepare("UPDATE shop_orders SET status='paid',fulfilment_json=? WHERE id=?").run(JSON.stringify({name:'Recipient',address:{country:'DE',postal_code:'12345',city:'Stadt',line1:'Straße 1'}}),o.id);
   const row=db.sqlite.prepare('SELECT * FROM shop_orders WHERE id=?').get(o.id);assert.equal(publicOrder(row).email,undefined);assert.equal(publicOrder(row).fulfilment_json,undefined);
-  const data=await (await onRequestGet({env,request:await request('/api/admin/orders')})).json();assert.equal(data.orders[0].email,'buyer@example.test');assert.equal(data.orders[0].shipping.name,'Recipient');db.sqlite.close();
+  const data=await (await onRequestGet({env,request:await adminRequest(env,'/api/admin/orders')})).json();assert.equal(data.orders[0].email,'buyer@example.test');assert.equal(data.orders[0].shipping.name,'Recipient');assert.equal(data.metrics.salesCents,0);db.sqlite.close();
 });
 test('a Discord outage does not turn a paid customer order into a failed checkout response',async t=>{
   const {reserve}=await import('../functions/api/checkout/_commerce.js'),{onRequestPost}=await import('../functions/api/checkout/order.js');
@@ -318,7 +341,7 @@ test('optional delivery telephone remains in protected order details',async()=>{
   const input=selection();input.delivery={...delivery(),phone:'+49123456789'};
   const order=await reserve(env,u,input);
   db.sqlite.prepare("UPDATE shop_orders SET status='paid',fulfilment_json=? WHERE id=?").run(JSON.stringify({name:'Test Person',address:{line1:'Musterstraße 1',city:'Musterstadt',postal_code:'12345',country:'DE'}}),order.id);
-  const response=await onRequestGet({env,request:await request('/api/admin/orders',null,u.email)});
+  const response=await onRequestGet({env,request:await adminRequest(env,'/api/admin/orders',null,u.email)});
   assert.equal(response.status,200);const body=await response.json();assert.equal(body.orders[0].phone,'+49123456789');
   assert.equal(body.orders[0].shipping.address?.line1,undefined);assert.equal(body.orders[0].shipping.line1,'Musterstraße 1');db.sqlite.close();
 });

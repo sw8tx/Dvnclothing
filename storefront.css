@@ -49,3 +49,5 @@
 @media(max-width:420px){.checkout-fields{gap:14px 10px}.checkout-payment-options .payment-choice{padding:14px 10px;gap:9px}.checkout-payment-options .mini-cards{flex-direction:column}.payment-choice-copy strong{font-size:14px}}
 
 @keyframes dvn-logo-spin{from{transform:rotateX(-8deg) rotateY(-18deg)}to{transform:rotateX(-8deg) rotateY(342deg)}}
+/* Quiet operator entry at the end of the storefront footer. */
+.footer-admin{font-size:11px;opacity:.65;text-decoration:none}.footer-admin:hover{opacity:1;text-decoration:underline}

@@ -2,18 +2,19 @@
   const $=s=>document.querySelector(s),section=$('#admin-content'),list=$('#admin-orders'),pending=$('#admin-pending');
   let epoch=0,busy=false,next=null,testKey=null;
   const money=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(n/100);
-  const messages={unauthenticated:'Bitte mit deinem Betreiberkonto anmelden.',forbidden:'Dieses Konto hat keinen Zugriff auf Bestellungen.',test_rate_limited:'Bitte eine Minute zwischen Testmeldungen warten.',notification_not_configured:'Der Discord-Zugang ist noch nicht eingerichtet.'};
+  const messages={admin_locked:'Bitte das Admin-Passwort eingeben.',too_many_attempts:'Zu viele Versuche. Bitte in 15 Minuten erneut versuchen.',invalid_password:'Passwort nicht korrekt.',unauthenticated:'Bitte mit deinem Betreiberkonto anmelden.',forbidden:'Dieses Konto hat keinen Zugriff auf Bestellungen.',test_rate_limited:'Bitte eine Minute zwischen Testmeldungen warten.',notification_not_configured:'Der Discord-Zugang ist noch nicht eingerichtet.'};
   const node=(tag,text,parent,cls)=>{const e=document.createElement(tag);e.textContent=text;if(cls)e.className=cls;parent.append(e);return e;};
   async function api(body,before){
     const r=await fetch('/api/admin/orders'+(before?'?before='+encodeURIComponent(before):''),{method:body?'POST':'GET',credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
     const data=await r.json();if(!r.ok)throw Error(messages[data.error]||'Der Vorgang ist gerade nicht verfügbar. Bitte erneut versuchen.');return data;
   }
-  function clear(){epoch++;next=null;list.replaceChildren();pending.replaceChildren();section.hidden=true;$('#admin-feedback').textContent='';}
+  function renderMetrics(m){const target=$('#admin-metrics');target.replaceChildren();if(!m)return;for(const [label,value] of [['Umsatz (Live)',money(m.salesCents)],['Bezahlte Bestellungen',String(m.orders)],['Verkaufte Shirts',String(m.units)],['Verfügbarer Bestand',String(m.stock)]]){const card=node('article','',target,'admin-metric');node('span',label,card);node('strong',value,card);}const chart=node('section','',target,'admin-chart');node('h2','Umsatz der letzten 7 Tage',chart);const bars=node('div','',chart,'admin-bars');const max=Math.max(1,...m.days.map(d=>d.cents));for(const d of m.days){const bar=node('div','',bars,'admin-bar');const fill=node('span','',bar);fill.style.height=Math.max(2,Math.round(d.cents/max*100))+'%';bar.title=d.date+' · '+money(d.cents);node('small',d.date.slice(5),bar);}}
+  function clear(){epoch++;next=null;list.replaceChildren();pending.replaceChildren();section.hidden=true;$('#admin-password-form').hidden=true;$('#admin-feedback').textContent='';}
   async function load(append=false){
     const version=epoch;
     try{
       const data=await api(null,append?next:null);if(version!==epoch)return;
-      section.hidden=false;$('#admin-login').hidden=true;$('#admin-status').textContent='Nur für dein freigeschaltetes Betreiberkonto. Kunden sehen diese Daten nicht.';
+      section.hidden=false;$('#admin-login').hidden=true;$('#admin-password-form').hidden=true;renderMetrics(data.metrics);$('#admin-status').textContent='Nur für dein freigeschaltetes Betreiberkonto. Kunden sehen diese Daten nicht.';
       if(!append)list.replaceChildren();pending.replaceChildren();
       if(!data.webhookConfigured)node('p','Discord ist noch nicht eingerichtet.',pending,'admin-alert');
       for(const job of data.pending){const row=node('div','',pending,'admin-alert');node('p',job.id+' · '+(job.last_error||job.status),row);const btn=node('button','Zustellung erneut versuchen',row);btn.type='button';btn.addEventListener('click',()=>action({action:'retry',id:job.id}));}
@@ -29,7 +30,7 @@
         node('p',(o.method==='paypal'?'PayPal':'Karte über Stripe')+(o.paymentId?' · '+o.paymentId:''),contact);
       }
       next=data.next;$('#admin-more').hidden=!next;
-    }catch(e){if(version!==epoch)return;clear();$('#admin-login').hidden=false;$('#admin-status').textContent=e.message;}
+    }catch(e){if(version!==epoch)return;clear();$('#admin-password-form').hidden=e.message!==messages.admin_locked;$('#admin-login').hidden=e.message===messages.admin_locked;$('#admin-status').textContent=e.message;}
   }
   async function action(body){
     if(busy)return;busy=true;const version=epoch;section.querySelectorAll('button').forEach(b=>b.disabled=true);
@@ -38,6 +39,7 @@
     }catch(e){if(version===epoch)$('#admin-feedback').textContent=e.message;}
     finally{busy=false;section.querySelectorAll('button').forEach(b=>b.disabled=false);}
   }
+  $('#admin-password-form').addEventListener('submit',async e=>{e.preventDefault();const field=$('#admin-password');try{const r=await fetch('/api/admin/access',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:field.value})});const data=await r.json();field.value='';if(!r.ok)throw Error(messages[data.error]||'Zugang derzeit nicht möglich.');await load();}catch(error){$('#admin-status').textContent=error.message;}});
   $('#admin-test').addEventListener('click',()=>{testKey ||= crypto.randomUUID();action({action:'simulate',key:testKey});});
   $('#admin-refresh').addEventListener('click',()=>load());$('#admin-more').addEventListener('click',()=>load(true));
   $('#admin-login').addEventListener('click',async()=>{if(await window.DVNAuth?.requireLogin())load();});
