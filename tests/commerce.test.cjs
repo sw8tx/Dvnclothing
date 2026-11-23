@@ -268,7 +268,7 @@ test('operator simulation is idempotent, rate limited and cannot write orders or
   assert.equal((await call({...body,key:crypto.randomUUID()})).status,429);
   assert.equal((await call({...body,email:'evil@example.test'})).status,400);
   assert.equal(db.sqlite.prepare('SELECT count(*) n FROM shop_orders').get().n,0);assert.equal(db.sqlite.prepare('SELECT sum(available) n FROM shop_inventory').get().n,75);
-  const data=await (await onRequestGet({env,request:await adminRequest(env,'/api/admin/orders')})).json();assert.deepEqual(data.orders,[]);assert.equal(data.webhookConfigured,true);assert.equal(data.metrics.salesCents,0);assert.doesNotMatch(JSON.stringify(data),/abcdefghijklmnopqrstuvwxyz|AUTH_COOKIE_SECRET/);db.sqlite.close();
+  const data=await (await onRequestGet({env,request:await adminRequest(env,'/api/admin/orders')})).json();assert.deepEqual(data.orders,[]);assert.equal(data.webhookConfigured,true);assert.equal(data.metrics.salesCents,0);assert.equal(data.inventory.length,15);assert.equal(data.inventory.reduce((sum,row)=>sum+row.available,0),75);assert.doesNotMatch(JSON.stringify(data),/abcdefghijklmnopqrstuvwxyz|AUTH_COOKIE_SECRET/);db.sqlite.close();
 });
 test('administrator sees shipping while customer order responses never expose recipient details',async()=>{
   const {onRequestGet}=await import('../functions/api/admin/orders.js'),{reserve,publicOrder}=await import('../functions/api/checkout/_commerce.js');

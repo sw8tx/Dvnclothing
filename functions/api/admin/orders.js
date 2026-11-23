@@ -21,6 +21,7 @@ async function handle({request,env},post) {
       const totals=await db.prepare(`SELECT COUNT(*) orders,COALESCE(SUM(total_cents),0) sales,
         COALESCE(SUM((SELECT SUM(CAST(json_extract(value,'$.quantity') AS INTEGER)) FROM json_each(items_json))),0) units
         FROM shop_orders WHERE status='paid' AND mode='live'`).bind().first();
+      const inventory=await db.prepare('SELECT product_id,size,available FROM shop_inventory ORDER BY product_id,size').bind().all();
       const stock=await db.prepare('SELECT COALESCE(SUM(available),0) available FROM shop_inventory').bind().first();
       const daily=await db.prepare(`SELECT date(paid_at,'unixepoch') date,SUM(total_cents) cents FROM shop_orders
         WHERE status='paid' AND mode='live' AND paid_at>=unixepoch()-7*86400 GROUP BY date(paid_at,'unixepoch')`).bind().all();
@@ -32,7 +33,7 @@ async function handle({request,env},post) {
         shipping:shippingDetails(JSON.parse(o.fulfilment_json||'null'),o.method),paymentId:o.payment_id,
         notificationStatus:o.notification_status,notificationError:o.notification_error})),
         next:result.results.length>20?rows.at(-1).cursor:null,pending:pending.results,webhookConfigured:Boolean(env.DISCORD_ORDER_WEBHOOK_URL),
-        metrics:{orders:totals.orders,salesCents:totals.sales,units:totals.units,stock:stock.available,days}});
+        inventory:inventory.results,metrics:{orders:totals.orders,salesCents:totals.sales,units:totals.units,stock:stock.available,days}});
     }
     const value=await readJson(request,{limit:1024});
     if(!value||typeof value!=='object'||Array.isArray(value))throw new CheckoutError('invalid_request');
