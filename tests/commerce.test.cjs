@@ -21,7 +21,7 @@ async function request(path,body,email='one@example.test',sub='email:'+email){
   return new Request(site+path,{method:body?'POST':'GET',headers:{Origin:site,'Content-Type':'application/json',
     Cookie:'__Host-dvn-session='+await seal({email,sub,exp:Math.floor(Date.now()/1000)+3600},secret)},body:body?JSON.stringify(body):undefined});
 }
-async function adminRequest(env,path,body,email='one@example.test'){
+async function adminRequest(env,path,body,email='account@dvnclothing.com'){
   const original=await request(path,body,email);
   const {grantAdmin}=await import('../functions/api/admin/_access.js');
   const granted=await grantAdmin(original,env,'dvnclothing');
@@ -246,10 +246,13 @@ test('admin dashboard requires owner session and a short-lived password proof',a
   const {onRequestPost}=await import('../functions/api/admin/access.js');
   const {onRequestGet}=await import('../functions/api/admin/orders.js');
   const db=database(),env={...db.env,COMMERCE_ADMIN_EMAILS:'one@example.test'};
-  const call=async(password,email='one@example.test')=>onRequestPost({env,request:await request('/api/admin/access',{password},email)});
+  const call=async(password,email='account@dvnclothing.com')=>onRequestPost({env,request:await request('/api/admin/access',{password},email)});
   assert.equal((await onRequestGet({env,request:await request('/api/admin/orders')})).status,403);
   assert.equal((await call('wrong')).status,401);
   assert.equal((await call('dvnclothing','other@example.test')).status,403);
+  // A legacy environment allowlist cannot grant access to another mailbox.
+  assert.equal((await call('dvnclothing','one@example.test')).status,403);
+  assert.equal((await call('dvnclothing','account+dvn@dvnclothing.com')).status,403);
   const proof=await call('dvnclothing');assert.equal(proof.status,200);
   const granted=await adminRequest(env,'/api/admin/orders');assert.equal((await onRequestGet({env,request:granted})).status,200);
   const foreign=await request('/api/admin/orders',null,'other@example.test');
@@ -337,7 +340,7 @@ test('PayPal receives the entered address and fixes shipping to that address',as
 test('optional delivery telephone remains in protected order details',async()=>{
   const {reserve}=await import('../functions/api/checkout/_commerce.js');
   const {onRequestGet}=await import('../functions/api/admin/orders.js');
-  const db=database(),env={...activeEnv(db.env),COMMERCE_ADMIN_EMAILS:'owner@example.test'},u=await user('owner@example.test');
+  const db=database(),env={...activeEnv(db.env),COMMERCE_ADMIN_EMAILS:'owner@example.test'},u=await user('account@dvnclothing.com');
   const input=selection();input.delivery={...delivery(),phone:'+49123456789'};
   const order=await reserve(env,u,input);
   db.sqlite.prepare("UPDATE shop_orders SET status='paid',fulfilment_json=? WHERE id=?").run(JSON.stringify({name:'Test Person',address:{line1:'Musterstraße 1',city:'Musterstadt',postal_code:'12345',country:'DE'}}),order.id);

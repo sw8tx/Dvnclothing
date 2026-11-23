@@ -9,8 +9,7 @@ const secret=env=>env.AUTH_COOKIE_SECRET+':admin-v1:'+hash(env);
 export async function adminIdentity(request,env){
   const user=await rawIdentity(request,env);
   if(!user)throw new CheckoutError('unauthenticated',401);
-  const allowed=(env.COMMERCE_ADMIN_EMAILS||'').split(',').map(v=>v.trim().toLowerCase()).filter(Boolean);
-  if(!allowed.includes(user.email.toLowerCase()))throw new CheckoutError('forbidden',403);
+  if(user.email.toLowerCase()!=='account@dvnclothing.com')throw new CheckoutError('forbidden',403);
   return user;
 }
 export async function requireAdminAccess(request,env){

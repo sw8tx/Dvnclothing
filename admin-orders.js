@@ -2,7 +2,7 @@
   const $=s=>document.querySelector(s),section=$('#admin-content'),list=$('#admin-orders'),pending=$('#admin-pending');
   let epoch=0,busy=false,next=null,testKey=null;
   const money=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(n/100);
-  const messages={admin_locked:'Bitte das Admin-Passwort eingeben.',too_many_attempts:'Zu viele Versuche. Bitte in 15 Minuten erneut versuchen.',invalid_password:'Passwort nicht korrekt.',unauthenticated:'Bitte mit deinem Betreiberkonto anmelden.',forbidden:'Dieses Konto hat keinen Zugriff auf Bestellungen.',test_rate_limited:'Bitte eine Minute zwischen Testmeldungen warten.',notification_not_configured:'Der Discord-Zugang ist noch nicht eingerichtet.'};
+  const messages={admin_locked:'Bitte das Admin-Passwort eingeben.',too_many_attempts:'Zu viele Versuche. Bitte in 15 Minuten erneut versuchen.',invalid_password:'Passwort nicht korrekt.',unauthenticated:'Bitte mit account@dvnclothing.com anmelden.',forbidden:'Nur account@dvnclothing.com hat Zugriff auf dieses Dashboard.',test_rate_limited:'Bitte eine Minute zwischen Testmeldungen warten.',notification_not_configured:'Der Discord-Zugang ist noch nicht eingerichtet.'};
   const node=(tag,text,parent,cls)=>{const e=document.createElement(tag);e.textContent=text;if(cls)e.className=cls;parent.append(e);return e;};
   async function api(body,before){
     const r=await fetch('/api/admin/orders'+(before?'?before='+encodeURIComponent(before):''),{method:body?'POST':'GET',credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
